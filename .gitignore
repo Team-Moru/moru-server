@@ -13,6 +13,8 @@ out/
 !.env.example
 
 src/main/resources/application-secret.yml
+src/main/resources/application-dev.yml
+src/main/resources/application-prod.yml
 
 # Created by https://www.toptal.com/developers/gitignore/api/java,windows,macos,git,eclipse,maven,gradle,visualstudiocode,jetbrains,intellij+all
 # Edit at https://www.toptal.com/developers/gitignore?templates=java,windows,macos,git,eclipse,maven,gradle,visualstudiocode,jetbrains,intellij+all
@@ -418,3 +420,6 @@ gradle-app.setting
 *.hprof
 
 # End of https://www.toptal.com/developers/gitignore/api/java,windows,macos,git,eclipse,maven,gradle,visualstudiocode,jetbrains,intellij+all
+
+application-dev.yml
+application-prod.yml
