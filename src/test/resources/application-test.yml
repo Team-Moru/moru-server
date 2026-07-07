@@ -12,3 +12,8 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.H2Dialect
     open-in-view: false
+
+jwt:
+  secret: moru-test-jwt-secret-key-must-be-at-least-32-bytes
+  access-token-expiration: 1h
+  refresh-token-expiration: 14d
