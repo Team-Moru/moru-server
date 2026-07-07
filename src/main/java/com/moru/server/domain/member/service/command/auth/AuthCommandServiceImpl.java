@@ -26,7 +26,7 @@ public class AuthCommandServiceImpl implements AuthCommandService {
 
     @Override
     public AuthResponseDTO.TokenResponse issueDevToken(AuthRequestDTO.DevTokenRequest request) {
-        Member member = memberRepository.findByOauthId(request.getOauthId())
+        Member member = memberRepository.findByOauthId(request.oauthId())
                 .orElseGet(() -> memberRepository.save(createDevMember(request)));
 
         return AuthResponseDTO.TokenResponse.builder()
@@ -40,8 +40,8 @@ public class AuthCommandServiceImpl implements AuthCommandService {
 
     private Member createDevMember(AuthRequestDTO.DevTokenRequest request) {
         return Member.builder()
-                .oauthId(request.getOauthId())
-                .nickname(resolveNickname(request.getNickname()))
+                .oauthId(request.oauthId())
+                .nickname(resolveNickname(request.nickname()))
                 .role(Role.MEMBER)
                 .loginType(DEFAULT_DEV_LOGIN_TYPE)
                 .build();
