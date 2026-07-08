@@ -24,6 +24,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
     private final RoutineGroupRepository routineGroupRepository;
     private final MemberRepository memberRepository;
 
+    // 루틴 그룹 생성
     @Override
     public RoutineGroupResponseDTO.CreateResponse createRoutineGroup(
             Long memberId,
