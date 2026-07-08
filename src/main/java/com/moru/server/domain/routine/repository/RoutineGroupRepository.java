@@ -11,7 +11,7 @@ public interface RoutineGroupRepository extends JpaRepository<RoutineGroup, Long
 
     @Query("""
         select distinct rg from RoutineGroup rg
-        join fetch rg.routines
+        left join fetch rg.routines
         where rg.member.id = :memberId
         order by rg.createdAt desc
     """)
