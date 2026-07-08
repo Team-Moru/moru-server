@@ -8,10 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import com.moru.server.domain.routine.dto.RoutineGroupRequestDTO;
 import com.moru.server.domain.routine.dto.RoutineGroupResponseDTO;
 import com.moru.server.global.response.ApiResponse;
@@ -32,5 +29,14 @@ public class RoutineGroupController {
     ) {
         return ApiResponse.of(SuccessStatus._CREATED,
                 routineGroupCommandService.createRoutineGroup(member.memberId(), request));
+    }
+
+    @Operation(summary = "루틴 그룹 삭제", description = "루틴 그룹을 삭제합니다.")
+    @DeleteMapping("/{routineGroupId}")
+    public ApiResponse<RoutineGroupResponseDTO.DeleteResponse> deleteRoutineGroup(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @PathVariable Long routineGroupId
+    ) {
+        return ApiResponse.onSuccess(routineGroupCommandService.deleteRoutineGroup(member.memberId(), routineGroupId));
     }
 }

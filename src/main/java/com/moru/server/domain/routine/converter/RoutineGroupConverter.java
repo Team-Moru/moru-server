@@ -33,4 +33,10 @@ public class RoutineGroupConverter {
                 .durationSecond(routine.getTimer())
                 .build();
     }
+
+    public static RoutineGroupResponseDTO.DeleteResponse toDeleteResponse(Long routineGroupId) {
+        return RoutineGroupResponseDTO.DeleteResponse.builder()
+                .routineGroupId(routineGroupId)
+                .build();
+    }
 }

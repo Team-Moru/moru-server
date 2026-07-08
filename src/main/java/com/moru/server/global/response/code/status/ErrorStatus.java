@@ -43,7 +43,9 @@ public enum ErrorStatus implements BaseCode {
     DUPLICATE_TERM_ID(HttpStatus.BAD_REQUEST, "T003", "중복된 약관 ID입니다."),
 
     // 루틴 그룹 관련 에러
-    ROUTINE_EMPTY(HttpStatus.BAD_REQUEST, "ROUTINE4001", "루틴은 최소 1개 이상이어야 합니다.");
+    ROUTINE_EMPTY(HttpStatus.BAD_REQUEST, "ROUTINE4001", "루틴은 최소 1개 이상이어야 합니다."),
+    ROUTINE_GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "ROUTINE4002", "존재하지 않는 루틴 그룹입니다."),
+    ROUTINE_GROUP_FORBIDDEN(HttpStatus.FORBIDDEN, "ROUTINE4003", "본인 소유의 루틴 그룹이 아닙니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
