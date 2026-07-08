@@ -19,7 +19,7 @@ import com.moru.server.global.response.ApiResponse;
 @Profile({"dev", "local"})
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/dev/auth")
+@RequestMapping("/dev/auth")
 public class DevAuthController {
 
     private final AuthCommandService authCommandService;

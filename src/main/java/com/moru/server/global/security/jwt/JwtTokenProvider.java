@@ -7,12 +7,19 @@ import java.util.Date;
 
 import javax.crypto.SecretKey;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import com.moru.server.domain.member.entity.enums.Role;
+import com.moru.server.global.exception.BusinessException;
+import com.moru.server.global.response.code.status.ErrorStatus;
 
 @Component
 @RequiredArgsConstructor
@@ -30,6 +37,28 @@ public class JwtTokenProvider {
         return createToken(memberId, role, jwtProperties.getRefreshTokenExpiration());
     }
 
+    public Long getMemberId(String token) {
+        try {
+            return Long.valueOf(parseClaims(token).getSubject());
+        } catch (NumberFormatException e) {
+            throw new BusinessException(ErrorStatus.ILLEGAL_ARGUMENT_TOKEN);
+        }
+    }
+
+    public Role getRole(String token) {
+        String role = parseClaims(token).get(ROLE_CLAIM, String.class);
+
+        try {
+            return Role.valueOf(role);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new BusinessException(ErrorStatus.ILLEGAL_ARGUMENT_TOKEN);
+        }
+    }
+
+    public void validateAccessToken(String token) {
+        parseClaims(token);
+    }
+
     private String createToken(Long memberId, Role role, Duration expiration) {
         Instant now = Instant.now();
         Instant expiresAt = now.plus(expiration);
@@ -45,5 +74,27 @@ public class JwtTokenProvider {
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private Claims parseClaims(String token) {
+        try {
+            return Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+        } catch (ExpiredJwtException e) {
+            throw new BusinessException(ErrorStatus.ACCESS_TOKEN_EXPIRED);
+        } catch (MalformedJwtException e) {
+            throw new BusinessException(ErrorStatus.MALFORMED_TOKEN);
+        } catch (io.jsonwebtoken.security.SecurityException e) {
+            throw new BusinessException(ErrorStatus.INVALID_SIGNATURE);
+        } catch (UnsupportedJwtException e) {
+            throw new BusinessException(ErrorStatus.UNSUPPORTED_TOKEN);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(ErrorStatus.ILLEGAL_ARGUMENT_TOKEN);
+        } catch (JwtException e) {
+            throw new BusinessException(ErrorStatus.TOKEN_PARSING_ERROR);
+        }
     }
 }
