@@ -10,8 +10,8 @@ import com.moru.server.domain.routine.entity.enums.RoutineType;
 public record RoutineGroupResponseDTO() {
 
     @Builder
-    @Schema(description = "루틴 그룹 생성 응답")
-    public record CreateResponse(
+    @Schema(description = "루틴 그룹 상세 응답")
+    public record DetailResponse(
             @Schema(description = "루틴 그룹 ID", example = "10")
             Long routineGroupId,
 

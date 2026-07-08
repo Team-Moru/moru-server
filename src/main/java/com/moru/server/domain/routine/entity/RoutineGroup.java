@@ -63,6 +63,10 @@ public class RoutineGroup extends BaseEntity {
         this.weatherNotificationEnabled = weatherNotificationEnabled;
     }
 
+    public boolean isOwnedBy(Long memberId) {
+        return this.member.getId().equals(memberId);
+    }
+
 
     public void activate() {
         this.isActive = true;
