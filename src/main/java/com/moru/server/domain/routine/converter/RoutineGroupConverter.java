@@ -33,4 +33,11 @@ public class RoutineGroupConverter {
                 .durationSecond(routine.getTimer())
                 .build();
     }
+
+    public static RoutineGroupResponseDTO.ActiveResponse toActiveResponse(RoutineGroup routineGroup) {
+        return RoutineGroupResponseDTO.ActiveResponse.builder()
+                .routineGroupId(routineGroup.getId())
+                .isActive(routineGroup.getIsActive())
+                .build();
+    }
 }

@@ -8,10 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import com.moru.server.domain.routine.dto.RoutineGroupRequestDTO;
 import com.moru.server.domain.routine.dto.RoutineGroupResponseDTO;
 import com.moru.server.global.response.ApiResponse;
@@ -32,5 +29,14 @@ public class RoutineGroupController {
     ) {
         return ApiResponse.of(SuccessStatus._CREATED,
                 routineGroupCommandService.createRoutineGroup(member.memberId(), request));
+    }
+
+    @Operation(summary = "루틴 그룹 활성화 토글", description = "루틴 그룹의 활성화 상태를 토글합니다.")
+    @PatchMapping("/{routineGroupId}/active")
+    public ApiResponse<RoutineGroupResponseDTO.ActiveResponse> toggleActive(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @PathVariable Long routineGroupId
+    ) {
+        return ApiResponse.onSuccess(routineGroupCommandService.toggleActive(member.memberId(), routineGroupId));
     }
 }

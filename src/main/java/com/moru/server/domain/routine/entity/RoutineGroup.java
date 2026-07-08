@@ -71,4 +71,12 @@ public class RoutineGroup extends BaseEntity {
     public void deactivate() {
         this.isActive = false;
     }
+
+    public void toggleActive() {
+        if (Boolean.TRUE.equals(this.isActive)) {
+            deactivate();
+        } else {
+            activate();
+        }
+    }
 }
