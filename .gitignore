@@ -421,5 +421,5 @@ gradle-app.setting
 
 # End of https://www.toptal.com/developers/gitignore/api/java,windows,macos,git,eclipse,maven,gradle,visualstudiocode,jetbrains,intellij+all
 
-application-dev.yml
+src/main/resources/application-dev.yml
 application-prod.yml

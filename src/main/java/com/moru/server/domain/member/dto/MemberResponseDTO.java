@@ -20,7 +20,7 @@ public record MemberResponseDTO() {
             @Schema(description = "프로필 이미지 키", nullable = true)
             String profileImageKey,
 
-            @Schema(description = "목소리 타입 ID", example = "1", nullable = true)
+            @Schema(description = "목소리 타입 ID", example = "1")
             Long ttsId
     ) {
     }
