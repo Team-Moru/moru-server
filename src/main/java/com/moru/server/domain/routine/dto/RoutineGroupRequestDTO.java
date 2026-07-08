@@ -4,8 +4,8 @@ import com.moru.server.domain.routine.entity.enums.RoutineType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 
 import java.time.LocalTime;
 import java.util.List;
@@ -45,7 +45,7 @@ public record RoutineGroupRequestDTO() {
             @Schema(description = "날씨 알림 활성화 여부", example = "true")
             Boolean weatherNotificationEnabled,
 
-            @NotEmpty(message = "routines는 최소 1개 이상이어야 합니다.")
+            @NotNull(message = "routines 값은 필수입니다.")
             @Valid
             @Schema(description = "루틴 목록")
             List<RoutineRequest> routines
@@ -62,6 +62,9 @@ public record RoutineGroupRequestDTO() {
             @Schema(description = "루틴 타입", example = "CHECK")
             RoutineType type,
 
+
+            @NotNull(message = "durationSecond는 필수입니다.")
+            @PositiveOrZero(message = "durationSecond는 0 이상이어야 합니다.")
             @Schema(description = "타이머/입력 소요 시간(초)", example = "180")
             Integer durationSecond
     ) {

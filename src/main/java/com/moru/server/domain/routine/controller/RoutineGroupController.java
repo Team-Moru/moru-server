@@ -1,6 +1,7 @@
 package com.moru.server.domain.routine.controller;
 
 import com.moru.server.domain.routine.service.command.RoutineGroup.RoutineGroupCommandService;
+import com.moru.server.global.response.code.status.SuccessStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -29,6 +30,6 @@ public class RoutineGroupController {
     public ApiResponse<RoutineGroupResponseDTO.CreateResponse> createRoutineGroup(
             @Valid @RequestBody RoutineGroupRequestDTO.CreateRequest request
     ) {
-        return ApiResponse.onSuccess(routineGroupCommandService.createRoutineGroup(request));
+        return ApiResponse.of(SuccessStatus._CREATED, routineGroupCommandService.createRoutineGroup(request));
     }
 }

@@ -3,7 +3,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.moru.server.domain.routine.converter.RoutineGroupConverter;
-import com.moru.server.domain.routine.service.command.RoutineGroup.RoutineGroupCommandService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +30,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
     public RoutineGroupResponseDTO.CreateResponse createRoutineGroup(
             RoutineGroupRequestDTO.CreateRequest request
     ) {
-        if (request.routines().isEmpty()) {
+        if (request.routines() == null || request.routines().isEmpty()) {
             throw new BusinessException(ErrorStatus.ROUTINE_EMPTY);
         }
 
