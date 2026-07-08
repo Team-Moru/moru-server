@@ -9,7 +9,7 @@ public class MemberConverter {
         return MemberResponseDTO.ProfileResponse.builder()
                 .memberId(member.getId())
                 .nickname(member.getNickname())
-                .loginType(member.getLoginType().name())
+                .loginType(member.getLoginType())
                 .profileImageKey(member.getProfileImageKey())
                 .ttsId(member.getVoiceType() != null ? member.getVoiceType().getId() : null)
                 .build();

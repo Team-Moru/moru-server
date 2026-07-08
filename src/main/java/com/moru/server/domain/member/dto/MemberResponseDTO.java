@@ -1,5 +1,6 @@
 package com.moru.server.domain.member.dto;
 
+import com.moru.server.domain.member.entity.enums.LoginType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 
@@ -15,7 +16,7 @@ public record MemberResponseDTO() {
             String nickname,
 
             @Schema(description = "소셜 로그인 방식", example = "KAKAO")
-            String loginType,
+            LoginType loginType,
 
             @Schema(description = "프로필 이미지 키", nullable = true)
             String profileImageKey,
