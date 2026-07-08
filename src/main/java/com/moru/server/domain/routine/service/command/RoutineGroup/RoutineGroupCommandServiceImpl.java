@@ -79,7 +79,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
                 .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
 
         if (!routineGroup.isOwnedBy(memberId)) {
-            throw new BusinessException(ErrorStatus.ROUTINE_GROUP_FORBIDDEN);
+            throw new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND);
         }
 
         routineGroup.toggleActive();
