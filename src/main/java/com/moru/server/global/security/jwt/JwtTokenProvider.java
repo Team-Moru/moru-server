@@ -38,12 +38,21 @@ public class JwtTokenProvider {
     }
 
     public Long getMemberId(String token) {
-        return Long.valueOf(parseClaims(token).getSubject());
+        try {
+            return Long.valueOf(parseClaims(token).getSubject());
+        } catch (NumberFormatException e) {
+            throw new BusinessException(ErrorStatus.ILLEGAL_ARGUMENT_TOKEN);
+        }
     }
 
     public Role getRole(String token) {
         String role = parseClaims(token).get(ROLE_CLAIM, String.class);
-        return Role.valueOf(role);
+
+        try {
+            return Role.valueOf(role);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new BusinessException(ErrorStatus.ILLEGAL_ARGUMENT_TOKEN);
+        }
     }
 
     public void validateAccessToken(String token) {
