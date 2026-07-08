@@ -4,5 +4,5 @@ import com.moru.server.domain.routine.dto.RoutineGroupRequestDTO;
 import com.moru.server.domain.routine.dto.RoutineGroupResponseDTO;
 
 public interface RoutineGroupCommandService {
-    RoutineGroupResponseDTO.CreateResponse createRoutineGroup(RoutineGroupRequestDTO.CreateRequest request);
+    RoutineGroupResponseDTO.CreateResponse createRoutineGroup(Long memberId, RoutineGroupRequestDTO.CreateRequest request);
 }

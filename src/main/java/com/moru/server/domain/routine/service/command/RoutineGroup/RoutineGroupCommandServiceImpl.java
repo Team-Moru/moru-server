@@ -15,7 +15,6 @@ import com.moru.server.domain.routine.entity.RoutineGroup;
 import com.moru.server.domain.routine.repository.RoutineGroupRepository;
 import com.moru.server.global.exception.BusinessException;
 import com.moru.server.global.response.code.status.ErrorStatus;
-import com.moru.server.global.security.auth.CurrentMemberProvider;
 
 @Service
 @RequiredArgsConstructor
@@ -24,17 +23,18 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
 
     private final RoutineGroupRepository routineGroupRepository;
     private final MemberRepository memberRepository;
-    private final CurrentMemberProvider currentMemberProvider;
 
     @Override
     public RoutineGroupResponseDTO.CreateResponse createRoutineGroup(
+            Long memberId,
             RoutineGroupRequestDTO.CreateRequest request
     ) {
         if (request.routines() == null || request.routines().isEmpty()) {
             throw new BusinessException(ErrorStatus.ROUTINE_EMPTY);
         }
 
-        Member member = getCurrentMember();
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
 
         RoutineGroup routineGroup = RoutineGroup.builder()
                 .title(request.title())
@@ -51,11 +51,6 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         RoutineGroup savedRoutineGroup = routineGroupRepository.save(routineGroup);
 
         return RoutineGroupConverter.toCreateResponse(savedRoutineGroup);
-    }
-    private Member getCurrentMember() {
-        Long memberId = currentMemberProvider.getCurrentMemberId();
-        return memberRepository.findById(memberId)
-                .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
     }
 
     private List<Routine> createRoutines(
