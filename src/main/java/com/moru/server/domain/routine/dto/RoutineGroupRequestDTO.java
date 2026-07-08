@@ -21,7 +21,7 @@ public record RoutineGroupRequestDTO() {
           "alarmTime": "09:00",
           "weatherNotificationEnabled": true,
           "routines": [
-            { "title": "잠자리 정리하기", "type": "CHECK", "durationSecond": null },
+            { "title": "잠자리 정리하기", "type": "CHECK", "durationSecond": 120 },
             { "title": "심호흡하며 명상하기", "type": "TIMER", "durationSecond": 180 },
             { "title": "오늘의 다짐 확언하기", "type": "INPUT", "durationSecond": 60 }
           ]
