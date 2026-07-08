@@ -40,7 +40,10 @@ public enum ErrorStatus implements BaseCode {
     // 서비스 약관 관련 에러
     TERM_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "약관을 찾을 수 없습니다."),
     REQUIRED_TERM_NOT_AGREED(HttpStatus.BAD_REQUEST, "T002", "필수 약관에 동의하지 않았습니다."),
-    DUPLICATE_TERM_ID(HttpStatus.BAD_REQUEST, "T003", "중복된 약관 ID입니다.");
+    DUPLICATE_TERM_ID(HttpStatus.BAD_REQUEST, "T003", "중복된 약관 ID입니다."),
+
+    // 루틴 그룹 관련 에러
+    ROUTINE_EMPTY(HttpStatus.BAD_REQUEST, "ROUTINE4001", "루틴은 최소 1개 이상이어야 합니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

@@ -1,4 +1,7 @@
 package com.moru.server.domain.routine.repository;
 
-public class RoutineGroupRepository {
+import com.moru.server.domain.routine.entity.RoutineGroup;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface RoutineGroupRepository extends JpaRepository<RoutineGroup, Long> {
 }
