@@ -78,7 +78,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         RoutineGroup routineGroup = routineGroupRepository.findById(routineGroupId)
                 .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
 
-        if (!routineGroup.getMember().getId().equals(memberId)) {
+        if (!routineGroup.isOwnedBy(memberId)) {
             throw new BusinessException(ErrorStatus.ROUTINE_GROUP_FORBIDDEN);
         }
 
