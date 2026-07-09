@@ -33,10 +33,11 @@ public class RoutineGroupController {
 
     @Operation(summary = "루틴 그룹 활성화 토글", description = "루틴 그룹의 활성화 상태를 토글합니다.")
     @PatchMapping("/{routineGroupId}/active")
-    public ApiResponse<RoutineGroupResponseDTO.ActiveResponse> toggleActive(
+    public ApiResponse<RoutineGroupResponseDTO.ActiveResponse> updateActive(
             @AuthenticationPrincipal AuthenticatedMember member,
-            @PathVariable Long routineGroupId
+            @PathVariable Long routineGroupId,
+            @Valid @RequestBody RoutineGroupRequestDTO.ActiveRequest request
     ) {
-        return ApiResponse.onSuccess(routineGroupCommandService.toggleActive(member.memberId(), routineGroupId));
+        return ApiResponse.onSuccess(routineGroupCommandService.updateActive(member.memberId(), routineGroupId, request));
     }
 }
