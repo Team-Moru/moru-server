@@ -66,6 +66,16 @@ public class RoutineGroup extends BaseEntity {
     public boolean isOwnedBy(Long memberId) {
         return this.member.getId().equals(memberId);
     }
+  
+    public int getTotalDurationSecond() {
+        return routines.stream()
+                .mapToInt(routine -> routine.getTimer() == null ? 0 : routine.getTimer())
+                .sum();
+    }
+
+    public int getRoutineCount() {
+        return routines.size();
+    }
 
 
     public void activate() {
@@ -75,4 +85,9 @@ public class RoutineGroup extends BaseEntity {
     public void deactivate() {
         this.isActive = false;
     }
+
+    public void updateActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
+    
 }

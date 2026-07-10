@@ -1,5 +1,7 @@
 package com.moru.server.domain.routine.service.query.RoutineGroup;
 
+import java.util.List;
+
 import com.moru.server.domain.routine.converter.RoutineGroupConverter;
 import com.moru.server.domain.routine.dto.RoutineGroupResponseDTO;
 import com.moru.server.domain.routine.entity.RoutineGroup;
@@ -21,12 +23,17 @@ public class RoutineGroupQueryServiceImpl implements RoutineGroupQueryService {
     @Override
     public RoutineGroupResponseDTO.DetailResponse getRoutineGroupDetail(Long memberId, Long routineGroupId) {
         RoutineGroup routineGroup = routineGroupRepository.findById(routineGroupId)
+                .filter(rg -> rg.isOwnedBy(memberId))
                 .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
-
-        if (!routineGroup.isOwnedBy(memberId)) {
-            throw new BusinessException(ErrorStatus.ROUTINE_GROUP_FORBIDDEN);
-        }
-
         return RoutineGroupConverter.toDetailResponse(routineGroup);
+    }
+
+    // 루틴 그룹 목록 조회
+    @Override
+    public List<RoutineGroupResponseDTO.SummaryResponse> getRoutineGroups(Long memberId) {
+        List<RoutineGroup> routineGroups = routineGroupRepository.findAllWithRoutinesByMemberId(memberId);
+        return routineGroups.stream()
+                .map(RoutineGroupConverter::toSummaryResponse)
+                .toList();
     }
 }

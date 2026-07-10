@@ -14,6 +14,8 @@ import com.moru.server.domain.routine.dto.RoutineGroupRequestDTO;
 import com.moru.server.domain.routine.dto.RoutineGroupResponseDTO;
 import com.moru.server.global.response.ApiResponse;
 
+import java.util.List;
+
 @Tag(name = "Routine Group", description = "루틴 그룹 API")
 @RestController
 @RequiredArgsConstructor
@@ -40,5 +42,32 @@ public class RoutineGroupController {
             @PathVariable Long routineGroupId
     ) {
         return ApiResponse.onSuccess(routineGroupQueryService.getRoutineGroupDetail(member.memberId(), routineGroupId));
+    }
+  
+    @Operation(summary = "루틴 그룹 삭제", description = "루틴 그룹을 삭제합니다.")
+    @DeleteMapping("/{routineGroupId}")
+    public ApiResponse<RoutineGroupResponseDTO.DeleteResponse> deleteRoutineGroup(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @PathVariable Long routineGroupId
+    ) {
+        return ApiResponse.onSuccess(routineGroupCommandService.deleteRoutineGroup(member.memberId(), routineGroupId));
+    }
+  
+    @Operation(summary = "루틴 그룹 활성화 토글", description = "루틴 그룹의 활성화 상태를 토글합니다.")
+    @PatchMapping("/{routineGroupId}/active")
+    public ApiResponse<RoutineGroupResponseDTO.ActiveResponse> updateActive(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @PathVariable Long routineGroupId,
+            @Valid @RequestBody RoutineGroupRequestDTO.ActiveRequest request
+    ) {
+        return ApiResponse.onSuccess(routineGroupCommandService.updateActive(member.memberId(), routineGroupId, request));
+    }  
+      
+    @Operation(summary = "루틴 그룹 목록 조회", description = "내 루틴 그룹 목록을 조회합니다.")
+    @GetMapping
+    public ApiResponse<List<RoutineGroupResponseDTO.SummaryResponse>> getRoutineGroups(
+            @AuthenticationPrincipal AuthenticatedMember member
+    ) {
+        return ApiResponse.onSuccess(routineGroupQueryService.getRoutineGroups(member.memberId()));
     }
 }
