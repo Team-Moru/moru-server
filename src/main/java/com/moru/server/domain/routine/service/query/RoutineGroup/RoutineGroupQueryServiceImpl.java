@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(readOnly = true)
 public class RoutineGroupQueryServiceImpl implements RoutineGroupQueryService {
 
     private final RoutineGroupRepository routineGroupRepository;
