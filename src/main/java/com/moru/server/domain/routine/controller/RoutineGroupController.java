@@ -27,7 +27,7 @@ public class RoutineGroupController {
 
     @Operation(summary = "루틴 그룹 생성", description = "루틴 그룹과 그에 속한 루틴들을 생성합니다.")
     @PostMapping
-    public ApiResponse<RoutineGroupResponseDTO.CreateResponse> createRoutineGroup(
+    public ApiResponse<RoutineGroupResponseDTO.DetailResponse> createRoutineGroup(
             @AuthenticationPrincipal AuthenticatedMember member,
             @Valid @RequestBody RoutineGroupRequestDTO.CreateRequest request
     ) {
@@ -35,6 +35,15 @@ public class RoutineGroupController {
                 routineGroupCommandService.createRoutineGroup(member.memberId(), request));
     }
 
+    @Operation(summary = "루틴 그룹 상세 조회", description = "루틴 그룹 상세 정보를 조회합니다.")
+    @GetMapping("/{routineGroupId}")
+    public ApiResponse<RoutineGroupResponseDTO.DetailResponse> getRoutineGroupDetail(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @PathVariable Long routineGroupId
+    ) {
+        return ApiResponse.onSuccess(routineGroupQueryService.getRoutineGroupDetail(member.memberId(), routineGroupId));
+    }
+  
     @Operation(summary = "루틴 그룹 삭제", description = "루틴 그룹을 삭제합니다.")
     @DeleteMapping("/{routineGroupId}")
     public ApiResponse<RoutineGroupResponseDTO.DeleteResponse> deleteRoutineGroup(

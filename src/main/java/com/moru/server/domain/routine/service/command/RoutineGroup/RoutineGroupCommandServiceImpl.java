@@ -26,7 +26,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
 
     // 루틴 그룹 생성
     @Override
-    public RoutineGroupResponseDTO.CreateResponse createRoutineGroup(
+    public RoutineGroupResponseDTO.DetailResponse createRoutineGroup(
             Long memberId,
             RoutineGroupRequestDTO.CreateRequest request
     ) {
@@ -51,7 +51,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
 
         RoutineGroup savedRoutineGroup = routineGroupRepository.save(routineGroup);
 
-        return RoutineGroupConverter.toCreateResponse(savedRoutineGroup);
+        return RoutineGroupConverter.toDetailResponse(savedRoutineGroup);
     }
 
     private List<Routine> createRoutines(

@@ -9,12 +9,12 @@ import com.moru.server.domain.routine.entity.RoutineGroup;
 
 public class RoutineGroupConverter {
 
-    public static RoutineGroupResponseDTO.CreateResponse toCreateResponse(RoutineGroup routineGroup) {
+    public static RoutineGroupResponseDTO.DetailResponse toDetailResponse(RoutineGroup routineGroup) {
         List<RoutineGroupResponseDTO.RoutineResponse> routineResponses = routineGroup.getRoutines().stream()
                 .map(RoutineGroupConverter::toRoutineResponse)
                 .toList();
 
-        return RoutineGroupResponseDTO.CreateResponse.builder()
+        return RoutineGroupResponseDTO.DetailResponse.builder()
                 .routineGroupId(routineGroup.getId())
                 .title(routineGroup.getTitle())
                 .description(routineGroup.getDescription())

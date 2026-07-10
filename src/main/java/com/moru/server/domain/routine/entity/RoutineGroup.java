@@ -63,6 +63,10 @@ public class RoutineGroup extends BaseEntity {
         this.weatherNotificationEnabled = weatherNotificationEnabled;
     }
 
+    public boolean isOwnedBy(Long memberId) {
+        return this.member.getId().equals(memberId);
+    }
+  
     public int getTotalDurationSecond() {
         return routines.stream()
                 .mapToInt(routine -> routine.getTimer() == null ? 0 : routine.getTimer())
@@ -85,7 +89,5 @@ public class RoutineGroup extends BaseEntity {
     public void updateActive(Boolean isActive) {
         this.isActive = isActive;
     }
-    public boolean isOwnedBy(Long memberId) {
-        return this.member.getId().equals(memberId);
-    }
+    
 }
