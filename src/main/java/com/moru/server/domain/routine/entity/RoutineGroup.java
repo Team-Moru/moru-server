@@ -82,7 +82,6 @@ public class RoutineGroup extends BaseEntity {
         this.isActive = false;
     }
 
-
     public void updateActive(Boolean isActive) {
         this.isActive = isActive;
     }

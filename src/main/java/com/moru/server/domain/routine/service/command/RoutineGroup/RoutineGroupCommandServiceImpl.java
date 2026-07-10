@@ -72,6 +72,21 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         return routines;
     }
 
+    //루틴 그룹 삭제
+    @Override
+    public RoutineGroupResponseDTO.DeleteResponse deleteRoutineGroup(Long memberId, Long routineGroupId) {
+        RoutineGroup routineGroup = routineGroupRepository.findById(routineGroupId)
+                .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
+
+        if (!routineGroup.isOwnedBy(memberId)) {
+            throw new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND);
+        }
+
+        routineGroupRepository.delete(routineGroup);
+
+        return RoutineGroupConverter.toDeleteResponse(routineGroupId);
+    }
+  
     // 루틴 그룹 토글 (활성/비활성)
     @Override
     public RoutineGroupResponseDTO.ActiveResponse updateActive(
@@ -83,7 +98,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
                 .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
 
         if (!routineGroup.getMember().getId().equals(memberId)) {
-            throw new BusinessException(ErrorStatus.ROUTINE_GROUP_FORBIDDEN);
+            throw new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND);
         }
 
         routineGroup.updateActive(request.isActive());

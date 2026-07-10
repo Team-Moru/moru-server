@@ -34,6 +34,12 @@ public class RoutineGroupConverter {
                 .build();
     }
 
+    public static RoutineGroupResponseDTO.DeleteResponse toDeleteResponse(Long routineGroupId) {
+        return RoutineGroupResponseDTO.DeleteResponse.builder()
+                .routineGroupId(routineGroupId)
+                .build();
+    }
+  
     public static RoutineGroupResponseDTO.ActiveResponse toActiveResponse(RoutineGroup routineGroup) {
         return RoutineGroupResponseDTO.ActiveResponse.builder()
                 .routineGroupId(routineGroup.getId())

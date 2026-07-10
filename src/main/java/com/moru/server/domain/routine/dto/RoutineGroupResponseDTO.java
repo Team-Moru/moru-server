@@ -51,6 +51,14 @@ public record RoutineGroupResponseDTO() {
             Integer durationSecond
     ) {
     }
+
+    @Builder
+    @Schema(description = "루틴 그룹 삭제 응답")
+    public record DeleteResponse(
+            @Schema(description = "루틴 그룹 ID", example = "1")
+            Long routineGroupId
+    ) {
+    }
   
 
     @Builder

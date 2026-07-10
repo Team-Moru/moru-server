@@ -35,6 +35,15 @@ public class RoutineGroupController {
                 routineGroupCommandService.createRoutineGroup(member.memberId(), request));
     }
 
+    @Operation(summary = "루틴 그룹 삭제", description = "루틴 그룹을 삭제합니다.")
+    @DeleteMapping("/{routineGroupId}")
+    public ApiResponse<RoutineGroupResponseDTO.DeleteResponse> deleteRoutineGroup(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @PathVariable Long routineGroupId
+    ) {
+        return ApiResponse.onSuccess(routineGroupCommandService.deleteRoutineGroup(member.memberId(), routineGroupId));
+    }
+  
     @Operation(summary = "루틴 그룹 활성화 토글", description = "루틴 그룹의 활성화 상태를 토글합니다.")
     @PatchMapping("/{routineGroupId}/active")
     public ApiResponse<RoutineGroupResponseDTO.ActiveResponse> updateActive(
