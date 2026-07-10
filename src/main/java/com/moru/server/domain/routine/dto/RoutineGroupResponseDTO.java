@@ -51,7 +51,20 @@ public record RoutineGroupResponseDTO() {
             Integer durationSecond
     ) {
     }
+  
 
+    @Builder
+    @Schema(description = "루틴 그룹 활성화 토글 응답")
+    public record ActiveResponse(
+            @Schema(description = "루틴 그룹 ID", example = "11")
+            Long routineGroupId,
+
+            @Schema(description = "활성화 여부", example = "true")
+            Boolean isActive
+    ) {
+    }
+  
+  
     @Builder
     @Schema(description = "루틴 그룹 목록 조회 응답")
     public record SummaryResponse(

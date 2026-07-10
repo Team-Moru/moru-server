@@ -34,6 +34,14 @@ public class RoutineGroupConverter {
                 .build();
     }
 
+    public static RoutineGroupResponseDTO.ActiveResponse toActiveResponse(RoutineGroup routineGroup) {
+        return RoutineGroupResponseDTO.ActiveResponse.builder()
+                .routineGroupId(routineGroup.getId())
+                .isActive(routineGroup.getIsActive())
+                .build();
+    }
+     
+          
     public static RoutineGroupResponseDTO.SummaryResponse toSummaryResponse(RoutineGroup routineGroup) {
         return RoutineGroupResponseDTO.SummaryResponse.builder()
                 .routineGroupId(routineGroup.getId())

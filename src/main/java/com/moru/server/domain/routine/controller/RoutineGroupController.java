@@ -35,6 +35,16 @@ public class RoutineGroupController {
                 routineGroupCommandService.createRoutineGroup(member.memberId(), request));
     }
 
+    @Operation(summary = "루틴 그룹 활성화 토글", description = "루틴 그룹의 활성화 상태를 토글합니다.")
+    @PatchMapping("/{routineGroupId}/active")
+    public ApiResponse<RoutineGroupResponseDTO.ActiveResponse> updateActive(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @PathVariable Long routineGroupId,
+            @Valid @RequestBody RoutineGroupRequestDTO.ActiveRequest request
+    ) {
+        return ApiResponse.onSuccess(routineGroupCommandService.updateActive(member.memberId(), routineGroupId, request));
+    }  
+      
     @Operation(summary = "루틴 그룹 목록 조회", description = "내 루틴 그룹 목록을 조회합니다.")
     @GetMapping
     public ApiResponse<List<RoutineGroupResponseDTO.SummaryResponse>> getRoutineGroups(
