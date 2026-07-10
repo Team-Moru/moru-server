@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Builder
@@ -35,9 +37,17 @@ public class RoutineGroup extends BaseEntity {
     @Column(name = "alarm_time")
     private LocalTime alarmTime;
 
+    @Column(name = "weather_notification_enabled", nullable = false)
+    @Builder.Default
+    private Boolean weatherNotificationEnabled = true;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
+
+    @OneToMany(mappedBy = "routineGroup", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<Routine> routines = new ArrayList<>();
 
     public void updateInfo(String title, String description) {
         this.title = title;
@@ -49,6 +59,25 @@ public class RoutineGroup extends BaseEntity {
         this.alarmTime = alarmTime;
     }
 
+    public void updateWeatherNotification(Boolean weatherNotificationEnabled) {
+        this.weatherNotificationEnabled = weatherNotificationEnabled;
+    }
+
+    public boolean isOwnedBy(Long memberId) {
+        return this.member.getId().equals(memberId);
+    }
+  
+    public int getTotalDurationSecond() {
+        return routines.stream()
+                .mapToInt(routine -> routine.getTimer() == null ? 0 : routine.getTimer())
+                .sum();
+    }
+
+    public int getRoutineCount() {
+        return routines.size();
+    }
+
+
     public void activate() {
         this.isActive = true;
     }
@@ -56,4 +85,9 @@ public class RoutineGroup extends BaseEntity {
     public void deactivate() {
         this.isActive = false;
     }
+
+    public void updateActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
+    
 }

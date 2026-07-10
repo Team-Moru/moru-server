@@ -30,6 +30,7 @@ public enum ErrorStatus implements BaseCode {
     UNSUPPORTED_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH4010", "지원하지 않는 토큰 유형입니다."),
     ILLEGAL_ARGUMENT_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH4011", "토큰의 인수가 올바르지 않습니다."),
     TOKEN_PARSING_ERROR(HttpStatus.UNAUTHORIZED, "AUTH4012", "토큰 파싱 중 오류가 발생했습니다."),
+    ACCESS_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH4013", "Access Token이 만료되었습니다."),
 
     // 멤버 관련 에러
     MEMBER_NOT_FOUND(HttpStatus.BAD_REQUEST, "MEMBER4001", "사용자가 없습니다."),
@@ -39,7 +40,12 @@ public enum ErrorStatus implements BaseCode {
     // 서비스 약관 관련 에러
     TERM_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "약관을 찾을 수 없습니다."),
     REQUIRED_TERM_NOT_AGREED(HttpStatus.BAD_REQUEST, "T002", "필수 약관에 동의하지 않았습니다."),
-    DUPLICATE_TERM_ID(HttpStatus.BAD_REQUEST, "T003", "중복된 약관 ID입니다.");
+    DUPLICATE_TERM_ID(HttpStatus.BAD_REQUEST, "T003", "중복된 약관 ID입니다."),
+
+    // 루틴 그룹 관련 에러
+    ROUTINE_EMPTY(HttpStatus.BAD_REQUEST, "ROUTINE4001", "루틴은 최소 1개 이상이어야 합니다."),
+    ROUTINE_GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "ROUTINE4002", "존재하지 않는 루틴 그룹입니다."),
+    ROUTINE_GROUP_FORBIDDEN(HttpStatus.FORBIDDEN, "ROUTINE4003", "본인 소유의 루틴 그룹이 아닙니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

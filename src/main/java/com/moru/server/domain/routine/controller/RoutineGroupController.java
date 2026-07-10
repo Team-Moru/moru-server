@@ -1,4 +1,73 @@
 package com.moru.server.domain.routine.controller;
 
+import com.moru.server.domain.routine.service.command.RoutineGroup.RoutineGroupCommandService;
+import com.moru.server.domain.routine.service.query.RoutineGroup.RoutineGroupQueryService;
+import com.moru.server.global.response.code.status.SuccessStatus;
+import com.moru.server.global.security.auth.AuthenticatedMember;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+import com.moru.server.domain.routine.dto.RoutineGroupRequestDTO;
+import com.moru.server.domain.routine.dto.RoutineGroupResponseDTO;
+import com.moru.server.global.response.ApiResponse;
+
+import java.util.List;
+
+@Tag(name = "Routine Group", description = "루틴 그룹 API")
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/routine-groups")
 public class RoutineGroupController {
+
+    private final RoutineGroupCommandService routineGroupCommandService;
+    private final RoutineGroupQueryService routineGroupQueryService;
+
+    @Operation(summary = "루틴 그룹 생성", description = "루틴 그룹과 그에 속한 루틴들을 생성합니다.")
+    @PostMapping
+    public ApiResponse<RoutineGroupResponseDTO.DetailResponse> createRoutineGroup(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @Valid @RequestBody RoutineGroupRequestDTO.CreateRequest request
+    ) {
+        return ApiResponse.of(SuccessStatus._CREATED,
+                routineGroupCommandService.createRoutineGroup(member.memberId(), request));
+    }
+
+    @Operation(summary = "루틴 그룹 상세 조회", description = "루틴 그룹 상세 정보를 조회합니다.")
+    @GetMapping("/{routineGroupId}")
+    public ApiResponse<RoutineGroupResponseDTO.DetailResponse> getRoutineGroupDetail(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @PathVariable Long routineGroupId
+    ) {
+        return ApiResponse.onSuccess(routineGroupQueryService.getRoutineGroupDetail(member.memberId(), routineGroupId));
+    }
+  
+    @Operation(summary = "루틴 그룹 삭제", description = "루틴 그룹을 삭제합니다.")
+    @DeleteMapping("/{routineGroupId}")
+    public ApiResponse<RoutineGroupResponseDTO.DeleteResponse> deleteRoutineGroup(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @PathVariable Long routineGroupId
+    ) {
+        return ApiResponse.onSuccess(routineGroupCommandService.deleteRoutineGroup(member.memberId(), routineGroupId));
+    }
+  
+    @Operation(summary = "루틴 그룹 활성화 토글", description = "루틴 그룹의 활성화 상태를 토글합니다.")
+    @PatchMapping("/{routineGroupId}/active")
+    public ApiResponse<RoutineGroupResponseDTO.ActiveResponse> updateActive(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @PathVariable Long routineGroupId,
+            @Valid @RequestBody RoutineGroupRequestDTO.ActiveRequest request
+    ) {
+        return ApiResponse.onSuccess(routineGroupCommandService.updateActive(member.memberId(), routineGroupId, request));
+    }  
+      
+    @Operation(summary = "루틴 그룹 목록 조회", description = "내 루틴 그룹 목록을 조회합니다.")
+    @GetMapping
+    public ApiResponse<List<RoutineGroupResponseDTO.SummaryResponse>> getRoutineGroups(
+            @AuthenticationPrincipal AuthenticatedMember member
+    ) {
+        return ApiResponse.onSuccess(routineGroupQueryService.getRoutineGroups(member.memberId()));
+    }
 }
