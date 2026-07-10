@@ -69,4 +69,12 @@ public record RoutineGroupRequestDTO() {
             Integer durationSecond
     ) {
     }
+
+    @Schema(description = "루틴 그룹 활성화 상태 변경 요청")
+    public record ActiveRequest(
+            @NotNull(message = "isActive는 필수입니다.")
+            @Schema(description = "활성화 여부", example = "true")
+            Boolean isActive
+    ) {
+    }
 }

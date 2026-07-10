@@ -24,6 +24,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
     private final RoutineGroupRepository routineGroupRepository;
     private final MemberRepository memberRepository;
 
+    // 루틴 그룹 생성
     @Override
     public RoutineGroupResponseDTO.CreateResponse createRoutineGroup(
             Long memberId,
@@ -84,5 +85,24 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         routineGroupRepository.delete(routineGroup);
 
         return RoutineGroupConverter.toDeleteResponse(routineGroupId);
+    }
+  
+    // 루틴 그룹 토글 (활성/비활성)
+    @Override
+    public RoutineGroupResponseDTO.ActiveResponse updateActive(
+            Long memberId,
+            Long routineGroupId,
+            RoutineGroupRequestDTO.ActiveRequest request
+    ) {
+        RoutineGroup routineGroup = routineGroupRepository.findById(routineGroupId)
+                .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
+
+        if (!routineGroup.getMember().getId().equals(memberId)) {
+            throw new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND);
+        }
+
+        routineGroup.updateActive(request.isActive());
+
+        return RoutineGroupConverter.toActiveResponse(routineGroup);
     }
 }
