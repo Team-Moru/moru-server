@@ -40,4 +40,15 @@ public class RoutineGroupConverter {
                 .isActive(routineGroup.getIsActive())
                 .build();
     }
+     
+          
+    public static RoutineGroupResponseDTO.SummaryResponse toSummaryResponse(RoutineGroup routineGroup) {
+        return RoutineGroupResponseDTO.SummaryResponse.builder()
+                .routineGroupId(routineGroup.getId())
+                .title(routineGroup.getTitle())
+                .isActive(routineGroup.getIsActive())
+                .routineCount(routineGroup.getRoutineCount())
+                .totalDurationSecond(routineGroup.getTotalDurationSecond())
+                .build();
+    }
 }
