@@ -14,4 +14,13 @@ public class MemberConverter {
                 .ttsId(member.getVoiceType() != null ? member.getVoiceType().getId() : null)
                 .build();
     }
+
+    public static MemberResponseDTO.TtsUpdateResponse toTtsUpdateResponse(Member member) {
+        return MemberResponseDTO.TtsUpdateResponse.builder()
+                .memberId(member.getId())
+                .ttsId(member.getVoiceType().getId())
+                .voiceCode(member.getVoiceType().getName())
+                .displayName(member.getVoiceType().getLabel())
+                .build();
+    }
 }
