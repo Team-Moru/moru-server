@@ -47,6 +47,7 @@ public class RoutineGroup extends BaseEntity {
     private Member member;
 
     @OneToMany(mappedBy = "routineGroup", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("orderIndex ASC")
     @Builder.Default
     private List<Routine> routines = new ArrayList<>();
 
@@ -91,12 +92,12 @@ public class RoutineGroup extends BaseEntity {
         this.isActive = isActive;
     }
 
-    public Routine addRoutine(String title, RoutineType type, Integer timer) {
+    public Routine addRoutine(String title, RoutineType type, Integer timer, Integer orderIndex) {
         Routine routine = Routine.builder()
                 .title(title)
                 .type(type)
                 .timer(timer)
-                .orderIndex(this.routines.size())
+                .orderIndex(orderIndex)
                 .routineGroup(this)
                 .build();
         this.routines.add(routine);

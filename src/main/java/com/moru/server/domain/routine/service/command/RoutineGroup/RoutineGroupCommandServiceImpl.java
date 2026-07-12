@@ -122,12 +122,16 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             throw new BusinessException(ErrorStatus.ROUTINE_GROUP_FORBIDDEN);
         }
 
+        int nextOrderIndex = routineRepository.findMaxOrderIndexByRoutineGroupId(routineGroupId)
+                .map(max -> max + 1)
+                .orElse(0);
+
         Routine routine = routineGroup.addRoutine(
-                request.title(), request.type(), request.durationSecond()
+                request.title(), request.type(), request.durationSecond(), nextOrderIndex
         );
 
         Routine savedRoutine = routineRepository.save(routine);
 
-        return RoutineGroupConverter.toRoutineResponse(routine);
+        return RoutineGroupConverter.toRoutineResponse(savedRoutine);
     }
 }
