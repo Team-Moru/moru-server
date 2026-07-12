@@ -1,6 +1,7 @@
 package com.moru.server.domain.routine.entity;
 
 import com.moru.server.domain.member.entity.Member;
+import com.moru.server.domain.routine.entity.enums.RoutineType;
 import com.moru.server.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -88,6 +89,18 @@ public class RoutineGroup extends BaseEntity {
 
     public void updateActive(Boolean isActive) {
         this.isActive = isActive;
+    }
+
+    public Routine addRoutine(String title, RoutineType type, Integer timer) {
+        Routine routine = Routine.builder()
+                .title(title)
+                .type(type)
+                .timer(timer)
+                .orderIndex(this.routines.size())
+                .routineGroup(this)
+                .build();
+        this.routines.add(routine);
+        return routine;
     }
     
 }
