@@ -3,6 +3,8 @@ package com.moru.server.domain.member.converter;
 import com.moru.server.domain.member.dto.MemberResponseDTO;
 import com.moru.server.domain.member.entity.Member;
 
+import java.util.List;
+
 public class MemberConverter {
 
     public static MemberResponseDTO.ProfileResponse toProfileResponse(Member member) {
@@ -21,6 +23,16 @@ public class MemberConverter {
                 .ttsId(member.getVoiceType().getId())
                 .voiceCode(member.getVoiceType().getName())
                 .displayName(member.getVoiceType().getLabel())
+                .build();
+    }
+
+    public static MemberResponseDTO.StreakResponse toStreakResponse(
+            Long currentStreak, Long maxStreak, List<Boolean> weeklyStatus
+    ) {
+        return MemberResponseDTO.StreakResponse.builder()
+                .currentStreak(currentStreak)
+                .maxStreak(maxStreak)
+                .weeklyStatus(weeklyStatus)
                 .build();
     }
 }

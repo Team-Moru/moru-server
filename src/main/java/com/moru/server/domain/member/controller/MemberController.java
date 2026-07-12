@@ -42,4 +42,12 @@ public class MemberController {
     ) {
         return ApiResponse.onSuccess(memberCommandService.updateTts(member.memberId(), request.ttsId()));
     }
+
+    @Operation(summary = "내 스트릭 조회", description = "현재 로그인한 사용자의 루틴 연속 달성 기록을 조회합니다.")
+    @GetMapping("/me/streak")
+    public ApiResponse<MemberResponseDTO.StreakResponse> getMyStreak(
+            @AuthenticationPrincipal AuthenticatedMember member
+    ) {
+        return ApiResponse.onSuccess(memberQueryService.getStreak(member.memberId()));
+    }
 }
