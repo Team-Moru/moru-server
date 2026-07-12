@@ -17,6 +17,15 @@ public class MemberConverter {
                 .build();
     }
 
+    public static MemberResponseDTO.TtsUpdateResponse toTtsUpdateResponse(Member member) {
+        return MemberResponseDTO.TtsUpdateResponse.builder()
+                .memberId(member.getId())
+                .ttsId(member.getVoiceType().getId())
+                .voiceCode(member.getVoiceType().getName())
+                .displayName(member.getVoiceType().getLabel())
+                .build();
+    }
+
     public static MemberResponseDTO.StreakResponse toStreakResponse(
             Long currentStreak, Long maxStreak, List<Boolean> weeklyStatus
     ) {
