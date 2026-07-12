@@ -115,7 +115,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             Long routineGroupId,
             RoutineGroupRequestDTO.RoutineRequest request
     ) {
-        RoutineGroup routineGroup = routineGroupRepository.findById(routineGroupId)
+        RoutineGroup routineGroup = routineGroupRepository.findByIdForUpdate(routineGroupId)
                 .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
 
         if (!routineGroup.isOwnedBy(memberId)) {
