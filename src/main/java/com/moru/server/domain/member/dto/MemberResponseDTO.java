@@ -37,7 +37,7 @@ public record MemberResponseDTO() {
             @Schema(description = "최고 연속 달성 일수", example = "12")
             Long maxStreak,
 
-            @Schema(description = "이번 주(월~일) 달성 여부. true=완료, false=미완료, null=아직 안 지난 날짜")
+            @Schema(description = "이번 주(월~일) 달성 여부. true=완료, false=미완료 또는 아직 안 지난 날짜")
             List<Boolean> weeklyStatus
     ) {
     }

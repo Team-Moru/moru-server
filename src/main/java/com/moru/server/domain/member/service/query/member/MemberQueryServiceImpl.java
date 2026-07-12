@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -22,6 +23,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class MemberQueryServiceImpl implements MemberQueryService {
+
+    private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
 
     private final MemberRepository memberRepository;
     private final RoutineExecutionRepository routineExecutionRepository;
@@ -43,7 +46,7 @@ public class MemberQueryServiceImpl implements MemberQueryService {
                 routineExecutionRepository.findCompletedDatesByMemberId(memberId)
         );
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(SERVICE_ZONE);
         Long currentStreak = calculateCurrentStreak(completedDates, today);
         Long maxStreak = calculateMaxStreak(completedDates);
         List<Boolean> weeklyStatus = calculateWeeklyStatus(completedDates, today);
@@ -89,7 +92,7 @@ public class MemberQueryServiceImpl implements MemberQueryService {
         for (int i = 0; i < 7; i++) {
             LocalDate date = monday.plusDays(i);
             if (date.isAfter(today)) {
-                weeklyStatus.add(null);
+                weeklyStatus.add(false);
             } else {
                 weeklyStatus.add(completedDates.contains(date));
             }
