@@ -116,19 +116,20 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             RoutineGroupRequestDTO.RoutineRequest request
     ) {
         RoutineGroup routineGroup = routineGroupRepository.findByIdForUpdate(routineGroupId)
+                .filter(rg -> rg.isOwnedBy(memberId))
                 .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
-
-        if (!routineGroup.isOwnedBy(memberId)) {
-            throw new BusinessException(ErrorStatus.ROUTINE_GROUP_FORBIDDEN);
-        }
 
         int nextOrderIndex = routineRepository.findMaxOrderIndexByRoutineGroupId(routineGroupId)
                 .map(max -> max + 1)
                 .orElse(0);
 
-        Routine routine = routineGroup.addRoutine(
-                request.title(), request.type(), request.durationSecond(), nextOrderIndex
-        );
+        Routine routine = Routine.builder()
+                .title(request.title())
+                .type(request.type())
+                .timer(request.durationSecond())
+                .orderIndex(nextOrderIndex)
+                .routineGroup(routineGroup)
+                .build();
 
         Routine savedRoutine = routineRepository.save(routine);
 
