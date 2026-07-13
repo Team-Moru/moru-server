@@ -70,4 +70,15 @@ public class RoutineGroupController {
     ) {
         return ApiResponse.onSuccess(routineGroupQueryService.getRoutineGroups(member.memberId()));
     }
+
+    @Operation(summary = "루틴 항목 추가", description = "루틴 그룹에 루틴 항목을 추가합니다.")
+    @PostMapping("/{routineGroupId}/routines")
+    public ApiResponse<RoutineGroupResponseDTO.RoutineResponse> addRoutine(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @PathVariable Long routineGroupId,
+            @Valid @RequestBody RoutineGroupRequestDTO.RoutineRequest request
+    ) {
+        return ApiResponse.of(SuccessStatus._CREATED,
+                routineGroupCommandService.addRoutine(member.memberId(), routineGroupId, request));
+    }
 }
