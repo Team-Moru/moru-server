@@ -9,9 +9,9 @@ services:
       SERVER_PORT: ${SERVER_PORT:-8080}
 
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
-      SPRING_DATASOURCE_URL: ${DB_URL}
-      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATASOURCE_URL: ${DB_URL:?DB_URL is required}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:?DB_USERNAME is required}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
 
       SPRING_JPA_HIBERNATE_DDL_AUTO: ${JPA_DDL_AUTO:-update}
       SPRING_JPA_OPEN_IN_VIEW: "false"
@@ -20,17 +20,17 @@ services:
       LOGGING_LEVEL_ORG_HIBERNATE_SQL: info
       LOGGING_LEVEL_ORG_HIBERNATE_ORM_JDBC_BIND: off
 
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_ACCESS_TOKEN_EXPIRATION: ${JWT_ACCESS_TOKEN_EXPIRATION:-1h}
       JWT_REFRESH_TOKEN_EXPIRATION: ${JWT_REFRESH_TOKEN_EXPIRATION:-14d}
 
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
 
     restart: unless-stopped
 
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:${SERVER_PORT:-8080}/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
