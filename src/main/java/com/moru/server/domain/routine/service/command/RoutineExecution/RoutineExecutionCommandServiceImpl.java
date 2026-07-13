@@ -1,8 +1,7 @@
 package com.moru.server.domain.routine.service.command.RoutineExecution;
 
 
-import com.moru.server.domain.member.entity.Member;
-import com.moru.server.domain.member.repository.MemberRepository;
+
 import com.moru.server.domain.routine.converter.RoutineExecutionConverter;
 import com.moru.server.domain.routine.dto.RoutineExecutionRequestDTO;
 import com.moru.server.domain.routine.dto.RoutineExecutionResponseDTO;
@@ -33,8 +32,8 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
                 .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_NOT_FOUND));
 
 
-        if(!routine.getRoutineGroup().getMember().getId().equals(memberId)){
-            throw new BusinessException(ErrorStatus.ROUTINE_FORBIDDEN);
+        if(routine.getRoutineGroup().isOwnedBy(memberId)){
+            throw new BusinessException(ErrorStatus.ROUTINE_NOT_FOUND);
         }
 
         RoutineExecution routineExecution = RoutineExecutionConverter.toEntity(req,routine);
