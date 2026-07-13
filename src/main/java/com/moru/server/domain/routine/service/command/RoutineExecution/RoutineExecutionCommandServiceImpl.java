@@ -32,7 +32,7 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
                 .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_NOT_FOUND));
 
 
-        if(routine.getRoutineGroup().isOwnedBy(memberId)){
+        if(!routine.getRoutineGroup().isOwnedBy(memberId)){
             throw new BusinessException(ErrorStatus.ROUTINE_NOT_FOUND);
         }
 
