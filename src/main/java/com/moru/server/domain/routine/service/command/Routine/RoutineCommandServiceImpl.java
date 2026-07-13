@@ -26,7 +26,7 @@ public class RoutineCommandServiceImpl implements RoutineCommandService {
             throw new BusinessException(ErrorStatus.ROUTINE_GROUP_FORBIDDEN);
         }
 
-        routine.getRoutineGroup().removeRoutine(routine);
+        routineRepository.delete(routine);
 
         return RoutineConverter.toDeleteResponse(routineId);
     }

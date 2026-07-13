@@ -77,10 +77,6 @@ public class RoutineGroup extends BaseEntity {
         return routines.size();
     }
 
-    public void removeRoutine(Routine routine) {
-        this.routines.remove(routine);
-    }
-
 
     public void activate() {
         this.isActive = true;
