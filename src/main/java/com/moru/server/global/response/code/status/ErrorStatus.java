@@ -48,9 +48,6 @@ public enum ErrorStatus implements BaseCode {
     ROUTINE_GROUP_FORBIDDEN(HttpStatus.FORBIDDEN, "ROUTINE4003", "본인 소유의 루틴 그룹이 아닙니다."),
     ROUTINE_NOT_FOUND(HttpStatus.NOT_FOUND, "ROUTINE4004", "존재하지 않는 루틴입니다."),
 
-    // 루틴 관련 에러
-    ROUTINE_NOT_FOUND(HttpStatus.NOT_FOUND,"ROUTINE4004","존재하지 않는 루틴입니다."),
-
 
     // TTS 관련 에러
     TTS_NOT_FOUND(HttpStatus.BAD_REQUEST, "TTS4001", "존재하지 않는 목소리입니다.");
