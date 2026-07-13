@@ -4,13 +4,17 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+      - dev
   workflow_dispatch:
 
 env:
   IMAGE_NAME: moru-server
 
 jobs:
-  deploy:
+  ci:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,8 +31,17 @@ jobs:
       - name: Grant Gradle permission
         run: chmod +x gradlew
 
-      - name: Test
-        run: ./gradlew test
+      - name: Build and test
+        run: ./gradlew test bootJar --no-daemon
+
+  deploy:
+    needs: ci
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3

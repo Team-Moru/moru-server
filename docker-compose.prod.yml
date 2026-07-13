@@ -1,6 +1,6 @@
 services:
   app:
-    image: ${DOCKER_IMAGE:-issuejong/moru-server:latest}
+    image: ${DOCKER_IMAGE:?DOCKER_IMAGE is required}
     container_name: moru-server
     env_file:
       - .env
