@@ -28,6 +28,7 @@ public class SecurityConfig {
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
+                                "/health",
                                 "/dev/auth/token",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
