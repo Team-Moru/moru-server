@@ -1,6 +1,7 @@
 package com.moru.server.domain.routine.entity;
 
 import com.moru.server.domain.member.entity.Member;
+import com.moru.server.domain.routine.entity.enums.RoutineType;
 import com.moru.server.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -46,6 +47,7 @@ public class RoutineGroup extends BaseEntity {
     private Member member;
 
     @OneToMany(mappedBy = "routineGroup", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("orderIndex ASC")
     @Builder.Default
     private List<Routine> routines = new ArrayList<>();
 
@@ -88,6 +90,18 @@ public class RoutineGroup extends BaseEntity {
 
     public void updateActive(Boolean isActive) {
         this.isActive = isActive;
+    }
+
+    public Routine addRoutine(String title, RoutineType type, Integer timer, Integer orderIndex) {
+        Routine routine = Routine.builder()
+                .title(title)
+                .type(type)
+                .timer(timer)
+                .orderIndex(orderIndex)
+                .routineGroup(this)
+                .build();
+        this.routines.add(routine);
+        return routine;
     }
     
 }

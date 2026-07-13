@@ -25,7 +25,7 @@ public class RoutineGroupConverter {
                 .build();
     }
 
-    private static RoutineGroupResponseDTO.RoutineResponse toRoutineResponse(Routine routine) {
+    public static RoutineGroupResponseDTO.RoutineResponse toRoutineResponse(Routine routine) {
         return RoutineGroupResponseDTO.RoutineResponse.builder()
                 .routineId(routine.getId())
                 .title(routine.getTitle())
