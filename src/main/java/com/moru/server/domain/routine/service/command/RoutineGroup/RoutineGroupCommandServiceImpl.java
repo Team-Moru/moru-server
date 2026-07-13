@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.moru.server.domain.routine.converter.RoutineGroupConverter;
+import com.moru.server.domain.routine.repository.RoutineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
 
     private final RoutineGroupRepository routineGroupRepository;
     private final MemberRepository memberRepository;
+    private final RoutineRepository routineRepository;
 
     // 루틴 그룹 생성
     @Override
@@ -104,5 +106,33 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         routineGroup.updateActive(request.isActive());
 
         return RoutineGroupConverter.toActiveResponse(routineGroup);
+    }
+
+    //루틴 항목 추가
+    @Override
+    public RoutineGroupResponseDTO.RoutineResponse addRoutine(
+            Long memberId,
+            Long routineGroupId,
+            RoutineGroupRequestDTO.RoutineRequest request
+    ) {
+        RoutineGroup routineGroup = routineGroupRepository.findByIdForUpdate(routineGroupId)
+                .filter(rg -> rg.isOwnedBy(memberId))
+                .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
+
+        int nextOrderIndex = routineRepository.findMaxOrderIndexByRoutineGroupId(routineGroupId)
+                .map(max -> max + 1)
+                .orElse(0);
+
+        Routine routine = Routine.builder()
+                .title(request.title())
+                .type(request.type())
+                .timer(request.durationSecond())
+                .orderIndex(nextOrderIndex)
+                .routineGroup(routineGroup)
+                .build();
+
+        Routine savedRoutine = routineRepository.save(routine);
+
+        return RoutineGroupConverter.toRoutineResponse(savedRoutine);
     }
 }
