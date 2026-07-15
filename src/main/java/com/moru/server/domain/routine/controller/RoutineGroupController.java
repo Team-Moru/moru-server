@@ -71,6 +71,14 @@ public class RoutineGroupController {
         return ApiResponse.onSuccess(routineGroupQueryService.getRoutineGroups(member.memberId()));
     }
 
+    @Operation(summary = "오늘의 루틴 진행 현황 조회", description = "사용 중인 루틴 그룹의 오늘 완료 현황을 조회합니다.")
+    @GetMapping("/today")
+    public ApiResponse<RoutineGroupResponseDTO.TodayResponse> getTodayRoutine(
+            @AuthenticationPrincipal AuthenticatedMember member
+    ) {
+        return ApiResponse.onSuccess(routineGroupQueryService.getTodayRoutine(member.memberId()));
+    }
+
     @Operation(summary = "루틴 항목 추가", description = "루틴 그룹에 루틴 항목을 추가합니다.")
     @PostMapping("/{routineGroupId}/routines")
     public ApiResponse<RoutineGroupResponseDTO.RoutineResponse> addRoutine(

@@ -57,4 +57,14 @@ public class RoutineGroupConverter {
                 .totalDurationSecond(routineGroup.getTotalDurationSecond())
                 .build();
     }
+
+    public static RoutineGroupResponseDTO.TodayResponse toTodayResponse(int completedCount, int totalCount) {
+        int completionRate = totalCount == 0 ? 0 : Math.round(completedCount * 100f / totalCount);
+
+        return RoutineGroupResponseDTO.TodayResponse.builder()
+                .completedCount(completedCount)
+                .totalCount(totalCount)
+                .completionRate(completionRate)
+                .build();
+    }
 }
