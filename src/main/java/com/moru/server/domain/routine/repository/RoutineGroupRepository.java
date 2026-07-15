@@ -23,4 +23,6 @@ public interface RoutineGroupRepository extends JpaRepository<RoutineGroup, Long
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT rg FROM RoutineGroup rg WHERE rg.id = :id")
     Optional<RoutineGroup> findByIdForUpdate(@Param("id") Long id);
+
+    Optional<RoutineGroup> findFirstByMember_IdAndIsActiveTrueOrderByCreatedAtDesc(Long memberId);
 }

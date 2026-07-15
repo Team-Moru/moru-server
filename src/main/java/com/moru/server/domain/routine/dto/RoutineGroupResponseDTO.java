@@ -92,4 +92,18 @@ public record RoutineGroupResponseDTO() {
             Integer totalDurationSecond
     ) {
     }
+
+    @Builder
+    @Schema(description = "오늘의 루틴 진행 현황 응답")
+    public record TodayResponse(
+            @Schema(description = "완료한 항목 수", example = "3")
+            Integer completedCount,
+
+            @Schema(description = "전체 항목 수", example = "6")
+            Integer totalCount,
+
+            @Schema(description = "완료율(%)", example = "50")
+            Integer completionRate
+    ) {
+    }
 }

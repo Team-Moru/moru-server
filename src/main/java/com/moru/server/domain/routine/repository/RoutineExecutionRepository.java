@@ -17,4 +17,12 @@ public interface RoutineExecutionRepository extends JpaRepository<RoutineExecuti
         order by re.executedDate
     """)
     List<LocalDate> findCompletedDatesByMemberId(@Param("memberId") Long memberId);
+
+    @Query("""
+        select count(re) from RoutineExecution re
+        where re.routine.routineGroup.id = :routineGroupId
+        and re.executedDate = :executedDate
+        and re.isCompleted = true
+    """)
+    int countCompletedByRoutineGroupIdAndExecutedDate(@Param("routineGroupId") Long routineGroupId, @Param("executedDate") LocalDate executedDate);
 }
