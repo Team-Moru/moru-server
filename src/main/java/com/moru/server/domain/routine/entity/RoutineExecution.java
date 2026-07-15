@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 @Entity
 @Builder
@@ -33,6 +34,9 @@ public class RoutineExecution extends BaseEntity {
 
     @Column(name = "ai_response", length = 500)
     private String aiResponse;
+
+    @Column(name = "actual_wake_time")
+    private LocalTime actualWakeTime;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "routine_id", nullable = false)
