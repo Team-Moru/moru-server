@@ -8,4 +8,5 @@ public interface RoutineGroupQueryService {
     RoutineGroupResponseDTO.DetailResponse getRoutineGroupDetail(Long memberId, Long routineGroupId);
     List<RoutineGroupResponseDTO.SummaryResponse> getRoutineGroups(Long memberId);
     RoutineGroupResponseDTO.TodayResponse getTodayRoutine(Long memberId);
+    RoutineGroupResponseDTO.ActiveRoutineResponse getActiveRoutine(Long memberId);
 }

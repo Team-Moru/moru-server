@@ -106,4 +106,41 @@ public record RoutineGroupResponseDTO() {
             Integer completionRate
     ) {
     }
+
+    @Builder
+    @Schema(description = "사용 중인 루틴 그룹 조회 응답")
+    public record ActiveRoutineResponse(
+            @Schema(description = "루틴 그룹 ID", example = "10")
+            Long routineGroupId,
+
+            @Schema(description = "루틴 그룹명", example = "활력 루틴")
+            String title,
+
+            @Schema(description = "총 소요시간(초)", example = "900")
+            Integer totalDurationSec,
+
+            @Schema(description = "완료율(%)", example = "50")
+            Integer completionRate,
+
+            @Schema(description = "루틴 항목 목록")
+            List<RoutineItem> routines
+    ) {
+    }
+
+    @Builder
+    @Schema(description = "사용 중인 루틴 그룹의 루틴 항목")
+    public record RoutineItem(
+            @Schema(description = "루틴 ID", example = "101")
+            Long routineId,
+
+            @Schema(description = "루틴 이름", example = "잠자리 정리하기")
+            String title,
+
+            @Schema(description = "루틴 완료 여부", example = "true")
+            Boolean isCompleted,
+
+            @Schema(description = "루틴 완료 소요시간 (초 단위)", example = "60", nullable = true)
+            Integer completedTimeSec
+    ) {
+    }
 }
