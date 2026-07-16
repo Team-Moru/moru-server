@@ -2,9 +2,13 @@ package com.moru.server.domain.routine.service.query.RoutineGroup;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.moru.server.domain.routine.converter.RoutineGroupConverter;
 import com.moru.server.domain.routine.dto.RoutineGroupResponseDTO;
+import com.moru.server.domain.routine.entity.RoutineExecution;
 import com.moru.server.domain.routine.entity.RoutineGroup;
 import com.moru.server.domain.routine.repository.RoutineExecutionRepository;
 import com.moru.server.domain.routine.repository.RoutineGroupRepository;
@@ -52,5 +56,20 @@ public class RoutineGroupQueryServiceImpl implements RoutineGroupQueryService {
                 routineGroup.getId(), LocalDate.now());
 
         return RoutineGroupConverter.toTodayResponse(completedCount, totalCount);
+    }
+
+    // 사용 중인 루틴 그룹 조회
+    @Override
+    public RoutineGroupResponseDTO.ActiveRoutineResponse getActiveRoutine(Long memberId) {
+        RoutineGroup routineGroup = routineGroupRepository
+                .findFirstByMember_IdAndIsActiveTrueOrderByCreatedAtDesc(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorStatus.ACTIVE_ROUTINE_GROUP_NOT_FOUND));
+
+        List<RoutineExecution> executions = routineExecutionRepository
+                .findByRoutineGroupIdAndExecutedDate(routineGroup.getId(), LocalDate.now());
+        Map<Long, RoutineExecution> executionByRoutineId = executions.stream()
+                .collect(Collectors.toMap(execution -> execution.getRoutine().getId(), Function.identity()));
+
+        return RoutineGroupConverter.toActiveRoutineResponse(routineGroup, executionByRoutineId);
     }
 }
