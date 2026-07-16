@@ -1,6 +1,7 @@
 package com.moru.server.domain.routine.service.query.RoutineGroup;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -22,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class RoutineGroupQueryServiceImpl implements RoutineGroupQueryService {
+
+    private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
 
     private final RoutineGroupRepository routineGroupRepository;
     private final RoutineExecutionRepository routineExecutionRepository;
@@ -53,7 +56,7 @@ public class RoutineGroupQueryServiceImpl implements RoutineGroupQueryService {
 
         int totalCount = routineGroup.getRoutineCount();
         int completedCount = routineExecutionRepository.countCompletedByRoutineGroupIdAndExecutedDate(
-                routineGroup.getId(), LocalDate.now());
+                routineGroup.getId(), LocalDate.now(SERVICE_ZONE));
 
         return RoutineGroupConverter.toTodayResponse(completedCount, totalCount);
     }
@@ -66,9 +69,12 @@ public class RoutineGroupQueryServiceImpl implements RoutineGroupQueryService {
                 .orElseThrow(() -> new BusinessException(ErrorStatus.ACTIVE_ROUTINE_GROUP_NOT_FOUND));
 
         List<RoutineExecution> executions = routineExecutionRepository
-                .findByRoutineGroupIdAndExecutedDate(routineGroup.getId(), LocalDate.now());
+                .findByRoutineGroupIdAndExecutedDate(routineGroup.getId(), LocalDate.now(SERVICE_ZONE));
         Map<Long, RoutineExecution> executionByRoutineId = executions.stream()
-                .collect(Collectors.toMap(execution -> execution.getRoutine().getId(), Function.identity()));
+                .collect(Collectors.toMap(
+                        execution -> execution.getRoutine().getId(),
+                        Function.identity(),
+                        (existing, replacement) -> existing));
 
         return RoutineGroupConverter.toActiveRoutineResponse(routineGroup, executionByRoutineId);
     }
