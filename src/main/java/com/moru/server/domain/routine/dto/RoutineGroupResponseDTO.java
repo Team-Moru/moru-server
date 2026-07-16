@@ -139,8 +139,8 @@ public record RoutineGroupResponseDTO() {
             @Schema(description = "루틴 완료 여부", example = "true")
             Boolean isCompleted,
 
-            @Schema(description = "소요시간 (mm:ss)", example = "01:00", nullable = true)
-            String completedTime
+            @Schema(description = "루틴 완료 소요시간 (초 단위)", example = "60", nullable = true)
+            Integer completedTimeSec
     ) {
     }
 }

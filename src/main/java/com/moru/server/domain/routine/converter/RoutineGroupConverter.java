@@ -93,20 +93,13 @@ public class RoutineGroupConverter {
 
     private static RoutineGroupResponseDTO.RoutineItem toRoutineItem(Routine routine, RoutineExecution execution) {
         boolean isCompleted = execution != null && Boolean.TRUE.equals(execution.getIsCompleted());
-        String completedTime = execution == null ? null : formatDurationSecond(execution.getDurationSecond());
+        Integer completedTimeSec = execution == null ? null : execution.getDurationSecond();
 
         return RoutineGroupResponseDTO.RoutineItem.builder()
                 .routineId(routine.getId())
                 .title(routine.getTitle())
                 .isCompleted(isCompleted)
-                .completedTime(completedTime)
+                .completedTimeSec(completedTimeSec)
                 .build();
-    }
-
-    private static String formatDurationSecond(Integer durationSecond) {
-        if (durationSecond == null) {
-            return null;
-        }
-        return String.format("%02d:%02d", durationSecond / 60, durationSecond % 60);
     }
 }
