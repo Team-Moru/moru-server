@@ -18,7 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class RoutineExecutionCommandServiceImpl implements RoutineExecutionCommandService {
 
@@ -29,6 +28,7 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
 
 
     @Override
+    @Transactional
     public RoutineExecutionResponseDTO.RoutineExecutionResultRes saveExecutionResult(Long memberId, RoutineExecutionRequestDTO.RoutineExecutionResultReq req) {
 
         Routine routine = routineRepository.findById(req.routineId())
@@ -46,10 +46,11 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
         return RoutineExecutionConverter.toResponse(routineExecution);
     }
 
+
     @Override
     public RoutineExecutionResponseDTO.AiResponseRes judgeUserResponse(Long memberId, RoutineExecutionRequestDTO.AiResponseReq req) {
 
-        Routine routine = routineRepository.findById(req.routineId())
+        Routine routine = routineRepository.findWithGroupById(req.routineId())
                 .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_NOT_FOUND));
 
 
