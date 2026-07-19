@@ -22,6 +22,9 @@ public class TTS extends BaseEntity {
     @Column(name = "label", nullable = false, length = 100)
     private String label;
 
+    @Column(name = "description", length = 100)
+    private String description;
+
     @Column(name = "is_pro_only", nullable = false)
     @Builder.Default
     private Boolean isProOnly = false;
