@@ -3,7 +3,6 @@ package com.moru.server.domain.tts.service.query;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,7 +20,7 @@ public class TTSQueryServiceImpl implements TTSQueryService {
 
     @Override
     public TTSResponseDTO.VoiceListResponse getVoices() {
-        List<TTS> voices = ttsRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
+        List<TTS> voices = ttsRepository.findAllByOrderByIdAsc();
 
         return TTSConverter.toVoiceListResponse(voices);
     }
