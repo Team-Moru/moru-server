@@ -1,5 +1,8 @@
 package com.moru.server.domain.routine.entity;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.moru.server.domain.routine.entity.enums.RoutineType;
 import com.moru.server.global.entity.BaseEntity;
 import jakarta.persistence.*;
@@ -33,6 +36,10 @@ public class Routine extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "routine_group_id", nullable = false)
     private RoutineGroup routineGroup;
+
+    @OneToMany(mappedBy = "routine", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<RoutineExecution> executions = new ArrayList<>();
 
     public void updateOrder(Integer orderIndex) {
         this.orderIndex = orderIndex;
