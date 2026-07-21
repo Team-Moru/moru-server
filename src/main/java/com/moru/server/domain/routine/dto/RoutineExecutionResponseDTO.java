@@ -6,7 +6,7 @@ import lombok.Builder;
 
 import java.time.LocalDate;
 
-public class RoutineExecutionResponseDTO {
+public record RoutineExecutionResponseDTO() {
 
     @Builder
     @Schema(description ="루틴 실행 결과 저장 응답")

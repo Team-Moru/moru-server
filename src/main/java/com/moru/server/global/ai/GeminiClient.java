@@ -70,7 +70,7 @@ public class GeminiClient implements AiClient{
         } catch (Exception e) {
             log.error("Gemini 호출 실패, fallback 반환", e);
             return GeminiResponseDTO.AiJudgeResult.builder()
-                    .shouldProceed(true)
+                    .shouldProceed(false)
                     .aiResponse("현재 AI응답을 불러올 수 없습니다. 다음으로 넘어갈게요")
                     .build();
         }

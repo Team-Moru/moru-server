@@ -2,7 +2,7 @@ package com.moru.server.global.ai.dto;
 
 import lombok.Builder;
 
-public class GeminiResponseDTO {
+public record GeminiResponseDTO() {
 
     @Builder
     public record AiJudgeResult(
