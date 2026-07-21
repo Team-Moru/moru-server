@@ -25,4 +25,6 @@ public interface RoutineGroupRepository extends JpaRepository<RoutineGroup, Long
     Optional<RoutineGroup> findByIdForUpdate(@Param("id") Long id);
 
     Optional<RoutineGroup> findFirstByMember_IdAndIsActiveTrueOrderByCreatedAtDesc(Long memberId);
+
+    List<RoutineGroup> findAllByMember_Id(Long memberId);
 }

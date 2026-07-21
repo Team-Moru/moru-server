@@ -6,4 +6,6 @@ import com.moru.server.domain.member.dto.AuthResponseDTO;
 public interface AuthCommandService {
 
     AuthResponseDTO.TokenResponse issueDevToken(AuthRequestDTO.DevTokenRequest request);
+
+    AuthResponseDTO.WithdrawalResponse withdraw(Long memberId);
 }
