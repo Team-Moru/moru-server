@@ -1,5 +1,8 @@
 package com.moru.server.domain.routine.controller;
 
+import com.moru.server.domain.routine.dto.RoutineGroupAiGenerateRequestDTO;
+import com.moru.server.domain.routine.dto.RoutineGroupAiGenerateResponseDTO;
+import com.moru.server.domain.routine.service.command.AI.RoutineCommandAiService;
 import com.moru.server.domain.routine.service.command.RoutineGroup.RoutineGroupCommandService;
 import com.moru.server.domain.routine.service.query.RoutineGroup.RoutineGroupQueryService;
 import com.moru.server.global.response.code.status.SuccessStatus;
@@ -24,6 +27,7 @@ public class RoutineGroupController {
 
     private final RoutineGroupCommandService routineGroupCommandService;
     private final RoutineGroupQueryService routineGroupQueryService;
+    private final RoutineCommandAiService RoutineCommandAiService;
 
     @Operation(summary = "루틴 그룹 생성", description = "루틴 그룹과 그에 속한 루틴들을 생성합니다.")
     @PostMapping
@@ -96,5 +100,15 @@ public class RoutineGroupController {
     ) {
         return ApiResponse.of(SuccessStatus._CREATED,
                 routineGroupCommandService.addRoutine(member.memberId(), routineGroupId, request));
+    }
+
+    @Operation(summary = "AI 루틴 그룹 생성", description = "자연어 입력을 기반으로 AI가 루틴 그룹을 생성합니다.")
+    @PostMapping("/ai-generate")
+    public ApiResponse<RoutineGroupAiGenerateResponseDTO> generateAiRoutine(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @Valid @RequestBody RoutineGroupAiGenerateRequestDTO request
+    ) {
+        return ApiResponse.of(SuccessStatus._CREATED,
+                RoutineCommandAiService.generateRoutineGroup(request.userInput()));
     }
 }
