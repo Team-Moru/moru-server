@@ -8,8 +8,11 @@ import com.moru.server.domain.member.dto.AuthRequestDTO;
 import com.moru.server.domain.member.dto.AuthResponseDTO;
 import com.moru.server.domain.member.entity.Member;
 import com.moru.server.domain.member.entity.enums.LoginType;
+import com.moru.server.domain.member.entity.enums.OAuthProvider;
 import com.moru.server.domain.member.entity.enums.Role;
 import com.moru.server.domain.member.repository.MemberRepository;
+import com.moru.server.global.exception.BusinessException;
+import com.moru.server.global.response.code.status.ErrorStatus;
 import com.moru.server.global.security.jwt.JwtTokenProvider;
 
 @Service
@@ -36,6 +39,30 @@ public class AuthCommandServiceImpl implements AuthCommandService {
                 .memberId(member.getId())
                 .onboardingCompleted(member.getOnboardingCompleted())
                 .build();
+    }
+
+    @Override
+    public AuthResponseDTO.SocialLoginResponse loginWithSocial(
+            OAuthProvider provider,
+            AuthRequestDTO.SocialLoginRequest request
+    ) {
+        return switch (provider) {
+            case KAKAO -> loginWithKakao(request);
+            case GOOGLE -> loginWithGoogle(request);
+            case APPLE -> loginWithApple(request);
+        };
+    }
+
+    private AuthResponseDTO.SocialLoginResponse loginWithKakao(AuthRequestDTO.SocialLoginRequest request) {
+        throw new BusinessException(ErrorStatus.INVALID_TOKEN);
+    }
+
+    private AuthResponseDTO.SocialLoginResponse loginWithGoogle(AuthRequestDTO.SocialLoginRequest request) {
+        throw new BusinessException(ErrorStatus.INVALID_TOKEN);
+    }
+
+    private AuthResponseDTO.SocialLoginResponse loginWithApple(AuthRequestDTO.SocialLoginRequest request) {
+        throw new BusinessException(ErrorStatus.INVALID_TOKEN);
     }
 
     private Member createDevMember(AuthRequestDTO.DevTokenRequest request) {
