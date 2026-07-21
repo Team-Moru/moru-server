@@ -3,7 +3,7 @@ package com.moru.server.domain.routine.service.command.AI;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moru.server.domain.routine.dto.RoutineGroupAiGenerateResponseDTO;
 import com.moru.server.global.config.GeminiRoutineProperties;
-import lombok.RequiredArgsConstructor;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -11,15 +11,33 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-@RequiredArgsConstructor
 public class GeminiRoutineGroupAiGenerator implements RoutineGroupAiGenerator {
 
-    private final GeminiRoutineProperties properties;
-    private final RestClient restClient = RestClient.create();
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final String BASE_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/";
+
+    private final GeminiRoutineProperties properties;
+    private final RestClient restClient;
+    private final ObjectMapper objectMapper;
+
+    public GeminiRoutineGroupAiGenerator(
+            GeminiRoutineProperties properties,
+            RestClient.Builder restClientBuilder,
+            ObjectMapper objectMapper
+    ) {
+        this.properties = properties;
+        this.objectMapper = objectMapper;
+
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(5_000);
+        requestFactory.setReadTimeout(15_000);
+
+        this.restClient = restClientBuilder
+                .requestFactory(requestFactory)
+                .build();
+    }
+
 
     @Override
     public RoutineGroupAiGenerateResponseDTO generate(String userInput) {
@@ -96,15 +114,38 @@ public class GeminiRoutineGroupAiGenerator implements RoutineGroupAiGenerator {
 
     @SuppressWarnings("unchecked")
     private RoutineGroupAiGenerateResponseDTO parseResponse(Map<String, Object> response) {
-        try {
-            List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
-            Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
-            List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
-            String jsonText = (String) parts.get(0).get("text");
+        List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
 
+        if (candidates == null || candidates.isEmpty()) {
+            throw new IllegalStateException(
+                    "Gemini 응답에 candidates가 없습니다. 안전 필터에 의해 거부되었을 수 있습니다. response=" + response
+            );
+        }
+
+        Map<String, Object> firstCandidate = candidates.get(0);
+        Map<String, Object> content = (Map<String, Object>) firstCandidate.get("content");
+
+        if (content == null) {
+            String finishReason = (String) firstCandidate.get("finishReason");
+            throw new IllegalStateException(
+                    "Gemini 응답에 content가 없습니다. finishReason=" + finishReason
+            );
+        }
+
+        List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
+        if (parts == null || parts.isEmpty()) {
+            throw new IllegalStateException("Gemini 응답에 parts가 없습니다.");
+        }
+
+        String jsonText = (String) parts.get(0).get("text");
+        if (jsonText == null) {
+            throw new IllegalStateException("Gemini 응답에 text가 없습니다.");
+        }
+
+        try {
             return objectMapper.readValue(jsonText, RoutineGroupAiGenerateResponseDTO.class);
         } catch (Exception e) {
-            throw new RuntimeException("AI 응답 파싱에 실패했습니다.", e);
+            throw new IllegalStateException("AI 응답 JSON 파싱에 실패했습니다. jsonText=" + jsonText, e);
         }
     }
 }
