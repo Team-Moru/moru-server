@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.moru.server.domain.member.client.AppleOAuthClient;
+import com.moru.server.domain.member.client.GoogleOAuthClient;
 import com.moru.server.domain.member.client.KakaoOAuthClient;
 import com.moru.server.domain.member.dto.AuthRequestDTO;
 import com.moru.server.domain.member.dto.AuthResponseDTO;
@@ -14,8 +16,6 @@ import com.moru.server.domain.member.entity.enums.LoginType;
 import com.moru.server.domain.member.entity.enums.OAuthProvider;
 import com.moru.server.domain.member.entity.enums.Role;
 import com.moru.server.domain.member.repository.MemberRepository;
-import com.moru.server.global.exception.BusinessException;
-import com.moru.server.global.response.code.status.ErrorStatus;
 import com.moru.server.global.security.jwt.JwtTokenProvider;
 
 @Service
@@ -29,6 +29,8 @@ public class AuthCommandServiceImpl implements AuthCommandService {
 
     private final MemberRepository memberRepository;
     private final KakaoOAuthClient kakaoOAuthClient;
+    private final GoogleOAuthClient googleOAuthClient;
+    private final AppleOAuthClient appleOAuthClient;
     private final JwtTokenProvider jwtTokenProvider;
 
     @Override
@@ -68,11 +70,23 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     }
 
     private AuthResponseDTO.SocialLoginResponse loginWithGoogle(AuthRequestDTO.SocialLoginRequest request) {
-        throw new BusinessException(ErrorStatus.INVALID_TOKEN);
+        GoogleOAuthClient.GoogleMemberInfo googleMemberInfo = googleOAuthClient.getMemberInfo(request.token());
+
+        return loginOrCreateMember(
+                googleMemberInfo.oauthId(),
+                googleMemberInfo.nickname(),
+                LoginType.GOOGLE
+        );
     }
 
     private AuthResponseDTO.SocialLoginResponse loginWithApple(AuthRequestDTO.SocialLoginRequest request) {
-        throw new BusinessException(ErrorStatus.INVALID_TOKEN);
+        AppleOAuthClient.AppleMemberInfo appleMemberInfo = appleOAuthClient.getMemberInfo(request.token());
+
+        return loginOrCreateMember(
+                appleMemberInfo.oauthId(),
+                appleMemberInfo.nickname(),
+                LoginType.APPLE
+        );
     }
 
     private AuthResponseDTO.SocialLoginResponse loginOrCreateMember(
