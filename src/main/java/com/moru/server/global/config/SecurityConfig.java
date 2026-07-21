@@ -29,6 +29,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/health",
+                                "/auth/reissue",
                                 "/dev/auth/token",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",

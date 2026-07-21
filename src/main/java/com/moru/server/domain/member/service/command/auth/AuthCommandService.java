@@ -6,4 +6,8 @@ import com.moru.server.domain.member.dto.AuthResponseDTO;
 public interface AuthCommandService {
 
     AuthResponseDTO.TokenResponse issueDevToken(AuthRequestDTO.DevTokenRequest request);
+
+    AuthResponseDTO.TokenResponse reissueToken(String refreshToken);
+
+    void logout(Long memberId, AuthRequestDTO.LogoutRequest request);
 }

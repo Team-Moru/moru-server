@@ -5,6 +5,14 @@ import jakarta.validation.constraints.NotBlank;
 
 public record AuthRequestDTO() {
 
+    @Schema(description = "로그아웃 요청")
+    public record LogoutRequest(
+        @NotBlank(message = "refreshToken은 필수입니다.")
+        @Schema(description = "무효화할 Refresh Token", example = "jwt_refresh_token")
+        String refreshToken
+    ) {
+    }
+
     @Schema(description = "개발용 임시 토큰 발급 요청")
     public record DevTokenRequest(
         @NotBlank(message = "oauthId는 필수입니다.")
