@@ -1,12 +1,14 @@
 package com.moru.server.domain.member.client;
 
-import java.time.Instant;
-import java.util.Map;
+import java.security.Key;
 
-import org.springframework.core.ParameterizedTypeReference;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.JwsHeader;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.LocatorAdapter;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
 
 import com.moru.server.global.config.OAuthProperties;
 import com.moru.server.global.exception.BusinessException;
@@ -15,36 +17,27 @@ import com.moru.server.global.response.code.status.ErrorStatus;
 @Component
 public class GoogleOAuthClient {
 
-    private static final String GOOGLE_API_BASE_URL = "https://oauth2.googleapis.com";
-    private static final String GOOGLE_TOKEN_INFO_PATH = "/tokeninfo";
-    private static final String ID_TOKEN_QUERY_PARAM = "id_token";
-    private static final ParameterizedTypeReference<Map<String, Object>> GOOGLE_RESPONSE_TYPE =
-            new ParameterizedTypeReference<>() {
-            };
+    private static final String RSA_SHA_256_ALGORITHM = "RS256";
 
-    private final RestClient restClient;
+    private final OAuthJwksClient oauthJwksClient;
     private final OAuthProperties oauthProperties;
 
     public GoogleOAuthClient(
-            RestClient.Builder restClientBuilder,
+            OAuthJwksClient oauthJwksClient,
             OAuthProperties oauthProperties
     ) {
-        this.restClient = restClientBuilder
-                .baseUrl(GOOGLE_API_BASE_URL)
-                .build();
+        this.oauthJwksClient = oauthJwksClient;
         this.oauthProperties = oauthProperties;
     }
 
     public GoogleMemberInfo getMemberInfo(String idToken) {
         validateOAuthConfig();
 
-        Map<String, Object> response = requestTokenInfo(idToken);
-        validateAudience(response);
-        validateExpiration(response);
+        Claims claims = parseClaims(idToken);
 
         return new GoogleMemberInfo(
-                extractOauthId(response),
-                extractNickname(response)
+                getRequiredSubject(claims),
+                extractNickname(claims)
         );
     }
 
@@ -54,81 +47,55 @@ public class GoogleOAuthClient {
         }
     }
 
-    private Map<String, Object> requestTokenInfo(String idToken) {
+    private Claims parseClaims(String idToken) {
         try {
-            Map<String, Object> response = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path(GOOGLE_TOKEN_INFO_PATH)
-                            .queryParam(ID_TOKEN_QUERY_PARAM, idToken)
-                            .build()
-                    )
-                    .retrieve()
-                    .body(GOOGLE_RESPONSE_TYPE);
-
-            if (response == null) {
-                throw new BusinessException(ErrorStatus.INVALID_TOKEN);
-            }
-
-            return response;
-        } catch (RestClientException e) {
+            return Jwts.parser()
+                    .keyLocator(new LocatorAdapter<>() {
+                        @Override
+                        protected Key locate(JwsHeader header) {
+                            validateAlgorithm(header);
+                            return oauthJwksClient.getPublicKey(
+                                    oauthProperties.getGoogle().getJwksUri(),
+                                    header.getKeyId()
+                            );
+                        }
+                    })
+                    .requireIssuer(oauthProperties.getGoogle().getIssuer())
+                    .requireAudience(oauthProperties.getGoogle().getClientId())
+                    .build()
+                    .parseSignedClaims(idToken)
+                    .getPayload();
+        } catch (ExpiredJwtException e) {
+            throw new BusinessException(ErrorStatus.INVALID_TOKEN);
+        } catch (JwtException | IllegalArgumentException e) {
             throw new BusinessException(ErrorStatus.INVALID_TOKEN);
         }
     }
 
-    private void validateAudience(Map<String, Object> response) {
-        String audience = getRequiredString(response, "aud");
-
-        if (!audience.equals(oauthProperties.getGoogle().getClientId())) {
+    private void validateAlgorithm(JwsHeader header) {
+        if (!RSA_SHA_256_ALGORITHM.equals(header.getAlgorithm())) {
             throw new BusinessException(ErrorStatus.INVALID_TOKEN);
         }
     }
 
-    private void validateExpiration(Map<String, Object> response) {
-        String expiration = getRequiredString(response, "exp");
+    private String getRequiredSubject(Claims claims) {
+        String subject = claims.getSubject();
 
-        try {
-            long expirationEpochSecond = Long.parseLong(expiration);
-
-            if (Instant.now().getEpochSecond() >= expirationEpochSecond) {
-                throw new BusinessException(ErrorStatus.INVALID_TOKEN);
-            }
-        } catch (NumberFormatException e) {
+        if (subject == null || subject.isBlank()) {
             throw new BusinessException(ErrorStatus.INVALID_TOKEN);
         }
+
+        return subject;
     }
 
-    private String extractOauthId(Map<String, Object> response) {
-        return getRequiredString(response, "sub");
-    }
+    private String extractNickname(Claims claims) {
+        String name = claims.get("name", String.class);
 
-    private String extractNickname(Map<String, Object> response) {
-        String name = getNullableString(response, "name");
-
-        if (name != null) {
+        if (name != null && !name.isBlank()) {
             return name;
         }
 
-        return getNullableString(response, "email");
-    }
-
-    private String getRequiredString(Map<String, Object> response, String key) {
-        String value = getNullableString(response, key);
-
-        if (value == null) {
-            throw new BusinessException(ErrorStatus.INVALID_TOKEN);
-        }
-
-        return value;
-    }
-
-    private String getNullableString(Map<String, Object> response, String key) {
-        Object value = response.get(key);
-
-        if (value == null || value.toString().isBlank()) {
-            return null;
-        }
-
-        return value.toString();
+        return claims.get("email", String.class);
     }
 
     public record GoogleMemberInfo(

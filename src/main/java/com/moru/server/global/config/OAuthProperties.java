@@ -20,6 +20,8 @@ public class OAuthProperties {
     public static class Google {
 
         private String clientId = "";
+        private String issuer = "https://accounts.google.com";
+        private String jwksUri = "https://www.googleapis.com/oauth2/v3/certs";
 
         public boolean hasClientId() {
             return StringUtils.hasText(clientId);

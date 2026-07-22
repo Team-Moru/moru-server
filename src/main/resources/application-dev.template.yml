@@ -25,6 +25,8 @@ jwt:
 oauth:
   google:
     client-id: {GOOGLE_CLIENT_ID}
+    issuer: https://accounts.google.com
+    jwks-uri: https://www.googleapis.com/oauth2/v3/certs
   apple:
     issuer: https://appleid.apple.com
     jwks-uri: https://appleid.apple.com/auth/keys
