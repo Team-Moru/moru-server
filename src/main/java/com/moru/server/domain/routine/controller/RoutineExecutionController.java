@@ -52,7 +52,7 @@ public class RoutineExecutionController {
     @GetMapping("/monthly")
     public ApiResponse<List<RoutineExecutionResponseDTO.DailyExecution>> getMonthlyExecutions(
             @AuthenticationPrincipal AuthenticatedMember member,
-            @RequestParam @Min(2000) Integer year,
+            @RequestParam @Min(2000) @Max(999999999) Integer year,
             @RequestParam @Min(1) @Max(12) Integer month
     ){
 
