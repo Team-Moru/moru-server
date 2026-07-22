@@ -1,10 +1,11 @@
 package com.moru.server.domain.member.service.command.auth;
 
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.moru.server.domain.member.client.AppleOAuthClient;
 import com.moru.server.domain.member.client.GoogleOAuthClient;
@@ -20,7 +21,6 @@ import com.moru.server.global.security.jwt.JwtTokenProvider;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class AuthCommandServiceImpl implements AuthCommandService {
 
     private static final String TOKEN_TYPE = "Bearer";
@@ -35,8 +35,11 @@ public class AuthCommandServiceImpl implements AuthCommandService {
 
     @Override
     public AuthResponseDTO.TokenResponse issueDevToken(AuthRequestDTO.DevTokenRequest request) {
-        Member member = memberRepository.findByOauthId(request.oauthId())
-                .orElseGet(() -> memberRepository.save(createDevMember(request)));
+        Member member = findOrCreateMember(
+                DEFAULT_DEV_LOGIN_TYPE,
+                request.oauthId(),
+                () -> createDevMember(request)
+        ).member();
 
         return AuthResponseDTO.TokenResponse.builder()
                 .accessToken(jwtTokenProvider.createAccessToken(member.getId(), member.getRole()))
@@ -94,13 +97,34 @@ public class AuthCommandServiceImpl implements AuthCommandService {
             String nickname,
             LoginType loginType
     ) {
-        Optional<Member> existingMember = memberRepository.findByOauthId(oauthId);
-        boolean isNewMember = existingMember.isEmpty();
-        Member member = existingMember.orElseGet(
-                () -> memberRepository.save(createSocialMember(oauthId, nickname, loginType))
+        MemberCreationResult result = findOrCreateMember(
+                loginType,
+                oauthId,
+                () -> createSocialMember(oauthId, nickname, loginType)
         );
 
-        return createSocialLoginResponse(member, isNewMember);
+        return createSocialLoginResponse(result.member(), result.isNewMember());
+    }
+
+    private MemberCreationResult findOrCreateMember(
+            LoginType loginType,
+            String oauthId,
+            Supplier<Member> memberSupplier
+    ) {
+        Optional<Member> existingMember = memberRepository.findByLoginTypeAndOauthId(loginType, oauthId);
+
+        if (existingMember.isPresent()) {
+            return new MemberCreationResult(existingMember.get(), false);
+        }
+
+        try {
+            Member savedMember = memberRepository.saveAndFlush(memberSupplier.get());
+            return new MemberCreationResult(savedMember, true);
+        } catch (DataIntegrityViolationException exception) {
+            Member concurrentlyCreatedMember = memberRepository.findByLoginTypeAndOauthId(loginType, oauthId)
+                    .orElseThrow(() -> exception);
+            return new MemberCreationResult(concurrentlyCreatedMember, false);
+        }
     }
 
     private AuthResponseDTO.SocialLoginResponse createSocialLoginResponse(Member member, boolean isNewMember) {
@@ -136,6 +160,12 @@ public class AuthCommandServiceImpl implements AuthCommandService {
             return DEFAULT_DEV_NICKNAME;
         }
         return nickname;
+    }
+
+    private record MemberCreationResult(
+            Member member,
+            boolean isNewMember
+    ) {
     }
 
 }
