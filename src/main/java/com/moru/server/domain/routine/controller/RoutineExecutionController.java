@@ -60,4 +60,13 @@ public class RoutineExecutionController {
                 routineExecutionQueryService.getMonthlyExecutions(member.memberId(), year, month));
     }
 
+    @Operation(summary = "주간 리포트 조회", description = "이번 주 루틴 실행 완료율, 지난주 대비 증감, 요일별/항목별 완료율을 조회합니다.")
+    @GetMapping("/weekly")
+    public ApiResponse<RoutineExecutionResponseDTO.WeeklyReportResponse> getWeeklyReport(
+            @AuthenticationPrincipal AuthenticatedMember member
+    ){
+
+        return ApiResponse.onSuccess(routineExecutionQueryService.getWeeklyReport(member.memberId()));
+    }
+
 }
