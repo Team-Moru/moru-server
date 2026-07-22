@@ -27,4 +27,15 @@ public class RoutineExecutionResponseDTO {
             @Schema(description = "완료 여부", example = "true")
             Boolean isCompleted
     ){}
+
+    @Builder
+    @Schema(description = "일별 루틴 실행 달성률")
+    public record DailyExecution(
+
+            @Schema(description = "실행 날짜", example = "2026-04-01")
+            LocalDate executedDate,
+
+            @Schema(description = "실행 달성률(%)", example = "80")
+            Integer completionRate
+    ){}
 }
