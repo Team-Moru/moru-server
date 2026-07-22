@@ -75,6 +75,7 @@ public class RoutineExecutionConverter {
         int completionRateDiff = completionRate - lastWeekCompletionRate;
 
         int totalDurationSecond = thisWeekExecutions.stream()
+                .filter(execution -> !execution.getExecutedDate().isAfter(today))
                 .mapToInt(execution -> execution.getDurationSecond() != null ? execution.getDurationSecond() : 0)
                 .sum();
 
