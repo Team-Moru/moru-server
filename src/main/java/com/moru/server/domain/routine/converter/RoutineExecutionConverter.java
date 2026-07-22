@@ -6,7 +6,8 @@ import com.moru.server.domain.routine.entity.Routine;
 import com.moru.server.domain.routine.entity.RoutineExecution;
 
 import java.time.LocalDate;
-import java.util.Comparator;
+import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -38,23 +39,28 @@ public class RoutineExecutionConverter {
     }
 
     public static List<RoutineExecutionResponseDTO.DailyExecution> toMonthlyResponse(
+            YearMonth yearMonth,
             Map<LocalDate, List<RoutineExecution>> executionsByDate
     ){
-        return executionsByDate.entrySet().stream()
-                .map(entry -> {
-                    List<RoutineExecution> executions = entry.getValue();
-                    int totalCount = executions.size();
-                    int completedCount = (int) executions.stream()
-                            .filter(RoutineExecution::getIsCompleted)
-                            .count();
-                    int completionRate = totalCount == 0 ? 0 : Math.round(completedCount * 100f / totalCount);
+        List<RoutineExecutionResponseDTO.DailyExecution> result = new ArrayList<>();
 
-                    return RoutineExecutionResponseDTO.DailyExecution.builder()
-                            .executedDate(entry.getKey())
-                            .completionRate(completionRate)
-                            .build();
-                })
-                .sorted(Comparator.comparing(RoutineExecutionResponseDTO.DailyExecution::executedDate))
-                .toList();
+        int daysInMonth = yearMonth.lengthOfMonth();
+        for (int day = 1; day <= daysInMonth; day++) {
+            LocalDate date = yearMonth.atDay(day);
+            List<RoutineExecution> executions = executionsByDate.getOrDefault(date, List.of());
+
+            int totalCount = executions.size();
+            int completedCount = (int) executions.stream()
+                    .filter(RoutineExecution::getIsCompleted)
+                    .count();
+            int completionRate = totalCount == 0 ? 0 : Math.round(completedCount * 100f / totalCount);
+
+            result.add(RoutineExecutionResponseDTO.DailyExecution.builder()
+                    .executedDate(date)
+                    .completionRate(completionRate)
+                    .build());
+        }
+
+        return result;
     }
 }
