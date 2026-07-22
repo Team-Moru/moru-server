@@ -63,4 +63,19 @@ public class RoutineExecutionConverter {
 
         return result;
     }
+
+    public static RoutineExecution toEntity(
+            RoutineExecutionRequestDTO.AiResponseReq req,
+            Routine routine,
+            String aiResponse) {
+        return RoutineExecution.builder()
+                .executedDate(req.executedDate())
+                .routine(routine)
+                .durationSecond(req.durationSecond())
+                .isCompleted(true)
+                .memberInput(req.memberInput())
+                .aiResponse(aiResponse)
+                .actualWakeTime(req.actualWakeTime())
+                .build();
+    }
 }

@@ -10,7 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
-public class RoutineExecutionRequestDTO {
+public record RoutineExecutionRequestDTO() {
 
     @Schema(description = "개별 루틴 실행 결과 저장 요청")
     public record RoutineExecutionResultReq(
@@ -42,4 +42,26 @@ public class RoutineExecutionRequestDTO {
             LocalTime actualWakeTime
     ){}
 
+    @Schema(description = "확인형 루틴 사용자 응답 AI 판단 요청")
+    public record AiResponseReq(
+            @NotNull(message = "routineId는 필수입니다.")
+            @Schema(description = "루틴 ID", example = "1")
+            Long routineId,
+
+            @NotNull(message = "executedDate는 필수입니다.")
+            @Schema(description = "실행 날짜", example = "2026-07-13")
+            LocalDate executedDate,
+
+            @PositiveOrZero(message = "durationSecond는 0 이상이어야 합니다.")
+            @Schema(description = "실행 소요 시간(초)", example = "20")
+            Integer durationSecond,
+
+            @NotNull(message = "memberInput는 필수입니다.")
+            @Size(max = 500, message = "memberInput은 500자 이하여야 합니다.")
+            @Schema(description = "사용자 입력", example = "응, 다음")
+            String memberInput,
+
+            @Schema(description = "실제 기상 시간 (마지막 루틴만 전송)", example = "07:23")
+            LocalTime actualWakeTime
+            ){}
 }

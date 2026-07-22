@@ -60,4 +60,13 @@ public class RoutineExecutionController {
                 routineExecutionQueryService.getMonthlyExecutions(member.memberId(), year, month));
     }
 
+    @Operation(summary = "루틴 실행 AI 응답 확인", description = "사용자의 응답을 AI가 판단하고 저장합니다.")
+    @PostMapping("/ai-step")
+    public ApiResponse<RoutineExecutionResponseDTO.AiResponseRes> judgeRoutineExecution(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @Valid @RequestBody RoutineExecutionRequestDTO.AiResponseReq req
+    ){
+        return ApiResponse.onSuccess(routineExecutionCommandService.judgeUserResponse(member.memberId(),req));
+    }
+
 }
