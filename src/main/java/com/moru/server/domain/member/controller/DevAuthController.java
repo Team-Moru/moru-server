@@ -1,6 +1,8 @@
 package com.moru.server.domain.member.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,9 +16,10 @@ import com.moru.server.domain.member.dto.AuthRequestDTO;
 import com.moru.server.domain.member.dto.AuthResponseDTO;
 import com.moru.server.domain.member.service.command.auth.AuthCommandService;
 import com.moru.server.global.response.ApiResponse;
+import com.moru.server.global.security.auth.DevAuthSecretFilter;
 
 @Tag(name = "Dev Auth", description = "개발용 인증 API")
-@Profile({"dev", "local"})
+@Profile({"dev", "local", "prod"})
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/dev/auth")
@@ -24,7 +27,15 @@ public class DevAuthController {
 
     private final AuthCommandService authCommandService;
 
-    @Operation(summary = "임시 토큰 발급", description = "소셜 로그인 구현 전까지 사용할 개발용 토큰을 발급합니다.")
+    @Operation(
+            summary = "임시 토큰 발급",
+            description = "소셜 로그인 구현 전까지 사용할 개발용 토큰을 발급합니다.",
+            parameters = @Parameter(
+                    name = DevAuthSecretFilter.SECRET_HEADER,
+                    description = "배포 환경에서 임시 토큰 발급을 허용하는 서버 비밀값",
+                    in = ParameterIn.HEADER
+            )
+    )
     @PostMapping("/token")
     public ApiResponse<AuthResponseDTO.TokenResponse> issueDevToken(
             @Valid @RequestBody AuthRequestDTO.DevTokenRequest request
