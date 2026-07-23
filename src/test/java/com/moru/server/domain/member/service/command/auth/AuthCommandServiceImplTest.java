@@ -6,6 +6,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -25,6 +27,7 @@ import com.moru.server.domain.member.entity.enums.LoginType;
 import com.moru.server.domain.member.entity.enums.OAuthProvider;
 import com.moru.server.domain.member.entity.enums.Role;
 import com.moru.server.domain.member.repository.MemberRepository;
+import com.moru.server.domain.member.repository.RefreshTokenRepository;
 import com.moru.server.global.security.jwt.JwtTokenProvider;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +35,9 @@ class AuthCommandServiceImplTest {
 
     @Mock
     private MemberRepository memberRepository;
+
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Mock
     private KakaoOAuthClient kakaoOAuthClient;
@@ -67,6 +73,10 @@ class AuthCommandServiceImplTest {
                 .thenThrow(new DataIntegrityViolationException("duplicate social member"));
         when(jwtTokenProvider.createAccessToken(1L, Role.MEMBER)).thenReturn("access-token");
         when(jwtTokenProvider.createRefreshToken(1L, Role.MEMBER)).thenReturn("refresh-token");
+        when(jwtTokenProvider.getRefreshTokenExpiresAt("refresh-token"))
+                .thenReturn(LocalDateTime.of(2026, 8, 6, 0, 0));
+        when(refreshTokenRepository.findAllByMember_IdAndRevokedAtIsNull(1L))
+                .thenReturn(List.of());
 
         AuthResponseDTO.SocialLoginResponse response = authCommandService.loginWithSocial(
                 OAuthProvider.GOOGLE,
