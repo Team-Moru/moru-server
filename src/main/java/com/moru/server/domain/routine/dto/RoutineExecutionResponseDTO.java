@@ -6,7 +6,7 @@ import lombok.Builder;
 
 import java.time.LocalDate;
 
-public class RoutineExecutionResponseDTO {
+public record RoutineExecutionResponseDTO() {
 
     @Builder
     @Schema(description ="루틴 실행 결과 저장 응답")
@@ -27,4 +27,25 @@ public class RoutineExecutionResponseDTO {
             @Schema(description = "완료 여부", example = "true")
             Boolean isCompleted
     ){}
+
+    @Builder
+    @Schema(description = "일별 루틴 실행 달성률")
+    public record DailyExecution(
+
+            @Schema(description = "실행 날짜", example = "2026-04-01")
+            LocalDate executedDate,
+
+            @Schema(description = "실행 달성률(%)", example = "80")
+            Integer completionRate
+    ){}
+
+    @Builder
+    @Schema(description ="루틴 AI 확인 결과 응답")
+    public record AiResponseRes(
+            @Schema(description = "AI 응답 상세 내역", example = "다음으로 넘어갈게요 !")
+            String aiResponse,
+
+            @Schema(description = "진행 여부", example = "true")
+            Boolean shouldProceed
+    ) {}
 }

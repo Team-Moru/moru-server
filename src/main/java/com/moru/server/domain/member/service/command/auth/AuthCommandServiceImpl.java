@@ -5,17 +5,24 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.Optional;
+import java.util.function.Supplier;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.moru.server.domain.member.client.AppleOAuthClient;
+import com.moru.server.domain.member.client.GoogleOAuthClient;
+import com.moru.server.domain.member.client.KakaoOAuthClient;
 import com.moru.server.domain.member.dto.AuthRequestDTO;
 import com.moru.server.domain.member.dto.AuthResponseDTO;
 import com.moru.server.domain.member.entity.Member;
 import com.moru.server.domain.member.entity.RefreshToken;
 import com.moru.server.domain.member.entity.enums.LoginType;
+import com.moru.server.domain.member.entity.enums.OAuthProvider;
 import com.moru.server.domain.member.entity.enums.Role;
 import com.moru.server.domain.member.repository.MemberRepository;
 import com.moru.server.domain.member.repository.RefreshTokenRepository;
@@ -25,7 +32,6 @@ import com.moru.server.global.security.jwt.JwtTokenProvider;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class AuthCommandServiceImpl implements AuthCommandService {
 
     private static final String TOKEN_TYPE = "Bearer";
@@ -35,17 +41,36 @@ public class AuthCommandServiceImpl implements AuthCommandService {
 
     private final MemberRepository memberRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final KakaoOAuthClient kakaoOAuthClient;
+    private final GoogleOAuthClient googleOAuthClient;
+    private final AppleOAuthClient appleOAuthClient;
     private final JwtTokenProvider jwtTokenProvider;
 
     @Override
     public AuthResponseDTO.TokenResponse issueDevToken(AuthRequestDTO.DevTokenRequest request) {
-        Member member = memberRepository.findByOauthId(request.oauthId())
-                .orElseGet(() -> memberRepository.save(createDevMember(request)));
+        Member member = findOrCreateMember(
+                DEFAULT_DEV_LOGIN_TYPE,
+                request.oauthId(),
+                () -> createDevMember(request)
+        ).member();
 
         return issueTokenResponse(member);
     }
 
     @Override
+    public AuthResponseDTO.SocialLoginResponse loginWithSocial(
+            OAuthProvider provider,
+            AuthRequestDTO.SocialLoginRequest request
+    ) {
+        return switch (provider) {
+            case KAKAO -> loginWithKakao(request);
+            case GOOGLE -> loginWithGoogle(request);
+            case APPLE -> loginWithApple(request);
+        };
+    }
+
+    @Override
+    @Transactional
     public AuthResponseDTO.TokenResponse reissueToken(String refreshToken) {
         validateRefreshTokenRequired(refreshToken);
         jwtTokenProvider.validateRefreshToken(refreshToken);
@@ -61,6 +86,7 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     }
 
     @Override
+    @Transactional
     public void logout(Long memberId, AuthRequestDTO.LogoutRequest request) {
         String refreshToken = request.refreshToken();
 
@@ -72,6 +98,71 @@ public class AuthCommandServiceImpl implements AuthCommandService {
 
         validateStoredRefreshToken(storedRefreshToken);
         storedRefreshToken.revoke(LocalDateTime.now());
+    }
+
+    private AuthResponseDTO.SocialLoginResponse loginWithKakao(AuthRequestDTO.SocialLoginRequest request) {
+        KakaoOAuthClient.KakaoMemberInfo kakaoMemberInfo = kakaoOAuthClient.getMemberInfo(request.token());
+
+        return loginOrCreateMember(
+                kakaoMemberInfo.oauthId(),
+                kakaoMemberInfo.nickname(),
+                LoginType.KAKAO
+        );
+    }
+
+    private AuthResponseDTO.SocialLoginResponse loginWithGoogle(AuthRequestDTO.SocialLoginRequest request) {
+        GoogleOAuthClient.GoogleMemberInfo googleMemberInfo = googleOAuthClient.getMemberInfo(request.token());
+
+        return loginOrCreateMember(
+                googleMemberInfo.oauthId(),
+                googleMemberInfo.nickname(),
+                LoginType.GOOGLE
+        );
+    }
+
+    private AuthResponseDTO.SocialLoginResponse loginWithApple(AuthRequestDTO.SocialLoginRequest request) {
+        AppleOAuthClient.AppleMemberInfo appleMemberInfo = appleOAuthClient.getMemberInfo(request.token());
+
+        return loginOrCreateMember(
+                appleMemberInfo.oauthId(),
+                appleMemberInfo.nickname(),
+                LoginType.APPLE
+        );
+    }
+
+    private AuthResponseDTO.SocialLoginResponse loginOrCreateMember(
+            String oauthId,
+            String nickname,
+            LoginType loginType
+    ) {
+        MemberCreationResult result = findOrCreateMember(
+                loginType,
+                oauthId,
+                () -> createSocialMember(oauthId, nickname, loginType)
+        );
+
+        return createSocialLoginResponse(result.member(), result.isNewMember());
+    }
+
+    private MemberCreationResult findOrCreateMember(
+            LoginType loginType,
+            String oauthId,
+            Supplier<Member> memberSupplier
+    ) {
+        Optional<Member> existingMember = memberRepository.findByLoginTypeAndOauthId(loginType, oauthId);
+
+        if (existingMember.isPresent()) {
+            return new MemberCreationResult(existingMember.get(), false);
+        }
+
+        try {
+            Member savedMember = memberRepository.saveAndFlush(memberSupplier.get());
+            return new MemberCreationResult(savedMember, true);
+        } catch (DataIntegrityViolationException exception) {
+            Member concurrentlyCreatedMember = memberRepository.findByLoginTypeAndOauthId(loginType, oauthId)
+                    .orElseThrow(() -> exception);
+            return new MemberCreationResult(concurrentlyCreatedMember, false);
+        }
     }
 
     private AuthResponseDTO.TokenResponse issueTokenResponse(Member member) {
@@ -89,6 +180,30 @@ public class AuthCommandServiceImpl implements AuthCommandService {
                 .build();
     }
 
+    private AuthResponseDTO.SocialLoginResponse createSocialLoginResponse(Member member, boolean isNewMember) {
+        String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole());
+        String refreshToken = jwtTokenProvider.createRefreshToken(member.getId(), member.getRole());
+
+        saveRefreshToken(member, refreshToken);
+
+        return AuthResponseDTO.SocialLoginResponse.builder()
+                .memberId(member.getId())
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .isNewMember(isNewMember)
+                .onboardingCompleted(member.getOnboardingCompleted())
+                .build();
+    }
+
+    private Member createSocialMember(String oauthId, String nickname, LoginType loginType) {
+        return Member.builder()
+                .oauthId(oauthId)
+                .nickname(nickname)
+                .role(Role.MEMBER)
+                .loginType(loginType)
+                .build();
+    }
+
     private Member createDevMember(AuthRequestDTO.DevTokenRequest request) {
         return Member.builder()
                 .oauthId(request.oauthId())
@@ -102,7 +217,10 @@ public class AuthCommandServiceImpl implements AuthCommandService {
         LocalDateTime now = LocalDateTime.now();
 
         refreshTokenRepository.findAllByMember_IdAndRevokedAtIsNull(member.getId())
-                .forEach(token -> token.revoke(now));
+                .forEach(token -> {
+                    token.revoke(now);
+                    refreshTokenRepository.save(token);
+                });
 
         refreshTokenRepository.save(RefreshToken.builder()
                 .member(member)
@@ -161,4 +279,9 @@ public class AuthCommandServiceImpl implements AuthCommandService {
         return nickname;
     }
 
+    private record MemberCreationResult(
+            Member member,
+            boolean isNewMember
+    ) {
+    }
 }

@@ -12,4 +12,7 @@ public interface RoutineRepository extends JpaRepository<Routine, Long> {
 
     @Query("SELECT MAX(r.orderIndex) FROM Routine r WHERE r.routineGroup.id = :routineGroupId")
     Optional<Integer> findMaxOrderIndexByRoutineGroupId(@Param("routineGroupId") Long routineGroupId);
+
+    @Query("SELECT r FROM Routine r JOIN FETCH r.routineGroup WHERE r.id = :id")
+    Optional<Routine> findWithGroupById(@Param("id") Long id);
 }

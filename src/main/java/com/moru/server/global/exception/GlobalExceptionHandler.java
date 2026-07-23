@@ -20,9 +20,11 @@ import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 
@@ -118,6 +120,29 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.onFailure(ErrorStatus.BAD_REQUEST, errors));
+    }
+
+    // @RequestParam 필수 파라미터 누락
+    @Override
+    protected ResponseEntity<Object> handleMissingServletRequestParameter(
+            MissingServletRequestParameterException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+
+        log.warn("Missing request parameter: {}", ex.getParameterName());
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.onFailure(ErrorStatus.BAD_REQUEST, ex.getParameterName() + " 파라미터가 필요합니다."));
+    }
+
+    // @RequestParam 타입/형식 오류
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Object> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException ex) {
+
+        log.warn("Type mismatch for parameter: {}", ex.getName());
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.onFailure(ErrorStatus.BAD_REQUEST, ex.getName() + " 파라미터 형식이 올바르지 않습니다."));
     }
 
     // JSON 파싱 실패
