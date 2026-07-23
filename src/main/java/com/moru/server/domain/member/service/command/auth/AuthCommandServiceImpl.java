@@ -25,7 +25,10 @@ import com.moru.server.domain.member.entity.enums.LoginType;
 import com.moru.server.domain.member.entity.enums.OAuthProvider;
 import com.moru.server.domain.member.entity.enums.Role;
 import com.moru.server.domain.member.repository.MemberRepository;
+import com.moru.server.domain.member.repository.MemberTermRepository;
 import com.moru.server.domain.member.repository.RefreshTokenRepository;
+import com.moru.server.domain.routine.repository.RoutineGroupRepository;
+import com.moru.server.domain.subscriptions.repository.SubscriptionsRepository;
 import com.moru.server.global.exception.BusinessException;
 import com.moru.server.global.response.code.status.ErrorStatus;
 import com.moru.server.global.security.jwt.JwtTokenProvider;
@@ -37,10 +40,14 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     private static final String TOKEN_TYPE = "Bearer";
     private static final String DEFAULT_DEV_NICKNAME = "테스트회원";
     private static final LoginType DEFAULT_DEV_LOGIN_TYPE = LoginType.KAKAO;
+    private static final String WITHDRAWAL_COMPLETE_MESSAGE = "회원 탈퇴가 완료되었습니다.";
     private static final String REFRESH_TOKEN_HASH_ALGORITHM = "SHA-256";
 
     private final MemberRepository memberRepository;
+    private final MemberTermRepository memberTermRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final RoutineGroupRepository routineGroupRepository;
+    private final SubscriptionsRepository subscriptionsRepository;
     private final KakaoOAuthClient kakaoOAuthClient;
     private final GoogleOAuthClient googleOAuthClient;
     private final AppleOAuthClient appleOAuthClient;
@@ -178,6 +185,27 @@ public class AuthCommandServiceImpl implements AuthCommandService {
                 .memberId(member.getId())
                 .onboardingCompleted(member.getOnboardingCompleted())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public AuthResponseDTO.WithdrawalResponse withdraw(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
+
+        deleteMemberRelatedData(memberId);
+        memberRepository.delete(member);
+
+        return AuthResponseDTO.WithdrawalResponse.builder()
+                .message(WITHDRAWAL_COMPLETE_MESSAGE)
+                .build();
+    }
+
+    private void deleteMemberRelatedData(Long memberId) {
+        refreshTokenRepository.deleteAllByMember_Id(memberId);
+        routineGroupRepository.deleteAll(routineGroupRepository.findAllByMember_Id(memberId));
+        subscriptionsRepository.deleteAllByMember_Id(memberId);
+        memberTermRepository.deleteAllByMember_Id(memberId);
     }
 
     private AuthResponseDTO.SocialLoginResponse createSocialLoginResponse(Member member, boolean isNewMember) {

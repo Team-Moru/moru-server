@@ -28,4 +28,6 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     );
 
     List<RefreshToken> findAllByMember_IdAndRevokedAtIsNull(Long memberId);
+
+    void deleteAllByMember_Id(Long memberId);
 }

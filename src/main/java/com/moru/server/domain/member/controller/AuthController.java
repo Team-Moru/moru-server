@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -96,6 +97,23 @@ public class AuthController {
               "isSuccess": true,
               "code": "COMMON200",
               "message": "성공입니다."
+            }
+            """;
+    private static final String WITHDRAWAL_SUCCESS_EXAMPLE = """
+            {
+              "isSuccess": true,
+              "code": "COMMON200",
+              "message": "성공입니다.",
+              "result": {
+                "message": "회원 탈퇴가 완료되었습니다."
+              }
+            }
+            """;
+    private static final String UNAUTHORIZED_EXAMPLE = """
+            {
+              "isSuccess": false,
+              "code": "COMMON401",
+              "message": "인증이 필요합니다."
             }
             """;
     private static final String INVALID_REFRESH_TOKEN_EXAMPLE = """
@@ -263,5 +281,31 @@ public class AuthController {
     ) {
         authCommandService.logout(currentMemberProvider.getCurrentMemberId(), request);
         return ApiResponse.onSuccess(null);
+    }
+
+    @Operation(summary = "회원탈퇴", description = "현재 로그인한 회원의 계정과 관련 데이터를 삭제합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "회원탈퇴 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = WITHDRAWAL_SUCCESS_EXAMPLE)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = UNAUTHORIZED_EXAMPLE)
+                    )
+            )
+    })
+    @DeleteMapping("/withdrawal")
+    public ApiResponse<AuthResponseDTO.WithdrawalResponse> withdraw() {
+        return ApiResponse.onSuccess(
+                authCommandService.withdraw(currentMemberProvider.getCurrentMemberId())
+        );
     }
 }
