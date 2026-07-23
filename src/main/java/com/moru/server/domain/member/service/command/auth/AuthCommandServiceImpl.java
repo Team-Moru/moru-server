@@ -230,7 +230,7 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     }
 
     private RefreshToken findStoredRefreshToken(Long memberId, String refreshToken) {
-        return refreshTokenRepository.findByMember_IdAndTokenHash(memberId, hashRefreshToken(refreshToken))
+        return refreshTokenRepository.findByMemberIdAndTokenHashForUpdate(memberId, hashRefreshToken(refreshToken))
                 .orElseThrow(() -> new BusinessException(ErrorStatus.REFRESH_TOKEN_NOT_FOUND));
     }
 
@@ -242,7 +242,6 @@ public class AuthCommandServiceImpl implements AuthCommandService {
         }
 
         if (refreshToken.isExpired(now)) {
-            refreshToken.revoke(now);
             throw new BusinessException(ErrorStatus.REFRESH_TOKEN_EXPIRED);
         }
     }
