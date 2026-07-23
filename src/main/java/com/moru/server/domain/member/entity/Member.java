@@ -16,8 +16,8 @@ import lombok.*;
         name = "members",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_member_oauth_id",
-                        columnNames = {"oauth_id"}
+                        name = "uk_member_login_type_oauth_id",
+                        columnNames = {"login_type", "oauth_id"}
                 )
         }
 )
