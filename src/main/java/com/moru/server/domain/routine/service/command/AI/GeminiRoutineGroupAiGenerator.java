@@ -23,11 +23,11 @@ public class GeminiRoutineGroupAiGenerator implements RoutineGroupAiGenerator {
 
     public GeminiRoutineGroupAiGenerator(
             GeminiRoutineProperties properties,
-            RestClient.Builder restClientBuilder,
-            ObjectMapper objectMapper
+            RestClient.Builder restClientBuilder
+
     ) {
         this.properties = properties;
-        this.objectMapper = objectMapper;
+        this.objectMapper = new ObjectMapper();
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(5_000);

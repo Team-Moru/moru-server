@@ -27,7 +27,7 @@ public class RoutineGroupController {
 
     private final RoutineGroupCommandService routineGroupCommandService;
     private final RoutineGroupQueryService routineGroupQueryService;
-    private final RoutineCommandAiService RoutineCommandAiService;
+    private final RoutineCommandAiService routineCommandAiService;
 
     @Operation(summary = "루틴 그룹 생성", description = "루틴 그룹과 그에 속한 루틴들을 생성합니다.")
     @PostMapping
@@ -109,6 +109,6 @@ public class RoutineGroupController {
             @Valid @RequestBody RoutineGroupAiGenerateRequestDTO request
     ) {
         return ApiResponse.of(SuccessStatus._CREATED,
-                RoutineCommandAiService.generateRoutineGroup(request.userInput()));
+                routineCommandAiService.generateRoutineGroup(request.userInput()));
     }
 }
