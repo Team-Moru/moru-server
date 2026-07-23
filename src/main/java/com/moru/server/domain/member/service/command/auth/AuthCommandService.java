@@ -12,4 +12,8 @@ public interface AuthCommandService {
             OAuthProvider provider,
             AuthRequestDTO.SocialLoginRequest request
     );
+
+    AuthResponseDTO.TokenResponse reissueToken(String refreshToken);
+
+    void logout(Long memberId, AuthRequestDTO.LogoutRequest request);
 }

@@ -1,11 +1,16 @@
 package com.moru.server.domain.member.service.command.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -21,10 +26,14 @@ import com.moru.server.domain.member.client.KakaoOAuthClient;
 import com.moru.server.domain.member.dto.AuthRequestDTO;
 import com.moru.server.domain.member.dto.AuthResponseDTO;
 import com.moru.server.domain.member.entity.Member;
+import com.moru.server.domain.member.entity.RefreshToken;
 import com.moru.server.domain.member.entity.enums.LoginType;
 import com.moru.server.domain.member.entity.enums.OAuthProvider;
 import com.moru.server.domain.member.entity.enums.Role;
 import com.moru.server.domain.member.repository.MemberRepository;
+import com.moru.server.domain.member.repository.RefreshTokenRepository;
+import com.moru.server.global.exception.BusinessException;
+import com.moru.server.global.response.code.status.ErrorStatus;
 import com.moru.server.global.security.jwt.JwtTokenProvider;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +41,9 @@ class AuthCommandServiceImplTest {
 
     @Mock
     private MemberRepository memberRepository;
+
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Mock
     private KakaoOAuthClient kakaoOAuthClient;
@@ -47,6 +59,70 @@ class AuthCommandServiceImplTest {
 
     @InjectMocks
     private AuthCommandServiceImpl authCommandService;
+
+    @Test
+    void reissuesTokenAfterReadingStoredTokenWithLock() {
+        Member member = Member.builder()
+                .id(1L)
+                .oauthId("google-member-id")
+                .nickname("모루")
+                .role(Role.MEMBER)
+                .loginType(LoginType.GOOGLE)
+                .build();
+        RefreshToken storedRefreshToken = RefreshToken.builder()
+                .id(1L)
+                .member(member)
+                .tokenHash("stored-token-hash")
+                .expiresAt(LocalDateTime.now().plusDays(1))
+                .build();
+
+        when(jwtTokenProvider.getMemberIdFromRefreshToken("refresh-token")).thenReturn(1L);
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        when(refreshTokenRepository.findByMemberIdAndTokenHashForUpdate(eq(1L), anyString()))
+                .thenReturn(Optional.of(storedRefreshToken));
+        when(jwtTokenProvider.createAccessToken(1L, Role.MEMBER)).thenReturn("new-access-token");
+        when(jwtTokenProvider.createRefreshToken(1L, Role.MEMBER)).thenReturn("new-refresh-token");
+        when(jwtTokenProvider.getRefreshTokenExpiresAt("new-refresh-token"))
+                .thenReturn(LocalDateTime.now().plusDays(14));
+        when(refreshTokenRepository.findAllByMember_IdAndRevokedAtIsNull(1L))
+                .thenReturn(List.of(storedRefreshToken));
+
+        AuthResponseDTO.TokenResponse response = authCommandService.reissueToken("refresh-token");
+
+        assertThat(response.accessToken()).isEqualTo("new-access-token");
+        assertThat(response.refreshToken()).isEqualTo("new-refresh-token");
+        assertThat(storedRefreshToken.isRevoked()).isTrue();
+        verify(refreshTokenRepository)
+                .findByMemberIdAndTokenHashForUpdate(eq(1L), anyString());
+    }
+
+    @Test
+    void rejectsExpiredRefreshTokenWithoutChangingRevocationState() {
+        Member member = Member.builder()
+                .id(1L)
+                .oauthId("google-member-id")
+                .nickname("모루")
+                .role(Role.MEMBER)
+                .loginType(LoginType.GOOGLE)
+                .build();
+        RefreshToken expiredRefreshToken = RefreshToken.builder()
+                .id(1L)
+                .member(member)
+                .tokenHash("expired-token-hash")
+                .expiresAt(LocalDateTime.now().minusMinutes(1))
+                .build();
+
+        when(jwtTokenProvider.getMemberIdFromRefreshToken("expired-refresh-token")).thenReturn(1L);
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        when(refreshTokenRepository.findByMemberIdAndTokenHashForUpdate(eq(1L), anyString()))
+                .thenReturn(Optional.of(expiredRefreshToken));
+
+        assertThatThrownBy(() -> authCommandService.reissueToken("expired-refresh-token"))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getBaseCode()).isEqualTo(ErrorStatus.REFRESH_TOKEN_EXPIRED)
+                );
+        assertThat(expiredRefreshToken.isRevoked()).isFalse();
+    }
 
     @Test
     void returnsConcurrentlyCreatedMemberWhenSocialMemberInsertConflicts() {
@@ -67,6 +143,10 @@ class AuthCommandServiceImplTest {
                 .thenThrow(new DataIntegrityViolationException("duplicate social member"));
         when(jwtTokenProvider.createAccessToken(1L, Role.MEMBER)).thenReturn("access-token");
         when(jwtTokenProvider.createRefreshToken(1L, Role.MEMBER)).thenReturn("refresh-token");
+        when(jwtTokenProvider.getRefreshTokenExpiresAt("refresh-token"))
+                .thenReturn(LocalDateTime.of(2026, 8, 6, 0, 0));
+        when(refreshTokenRepository.findAllByMember_IdAndRevokedAtIsNull(1L))
+                .thenReturn(List.of());
 
         AuthResponseDTO.SocialLoginResponse response = authCommandService.loginWithSocial(
                 OAuthProvider.GOOGLE,
