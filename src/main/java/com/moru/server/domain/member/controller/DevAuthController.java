@@ -16,7 +16,7 @@ import com.moru.server.domain.member.service.command.auth.AuthCommandService;
 import com.moru.server.global.response.ApiResponse;
 
 @Tag(name = "Dev Auth", description = "개발용 인증 API")
-@Profile({"dev", "local"})
+@Profile({"dev", "local", "prod"})
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/dev/auth")
