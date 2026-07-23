@@ -33,9 +33,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String ROLE_PREFIX = "ROLE_";
+    private static final String TOKEN_REISSUE_PATH = "/auth/reissue";
 
     private final JwtTokenProvider jwtTokenProvider;
     private final ObjectMapper objectMapper;
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return TOKEN_REISSUE_PATH.equals(request.getServletPath());
+    }
 
     @Override
     protected void doFilterInternal(
