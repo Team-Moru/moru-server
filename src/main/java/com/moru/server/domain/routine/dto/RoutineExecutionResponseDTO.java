@@ -85,7 +85,7 @@ public record RoutineExecutionResponseDTO() {
             Integer completionRate
     ){}
 
-    @
+    @Builder
     @Schema(description ="루틴 AI 확인 결과 응답")
     public record AiResponseRes(
             @Schema(description = "AI 응답 상세 내역", example = "다음으로 넘어갈게요 !")
