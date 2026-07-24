@@ -91,8 +91,8 @@ public class RoutineExecutionConverter {
         int daysPassed = (int) ChronoUnit.DAYS.between(monday, today) + 1;
         LocalDate lastMonday = monday.minusWeeks(1);
 
-        int completionRate = averageRate(toExecutedDailyRates(thisWeekExecutions, monday, daysPassed));
-        int lastWeekCompletionRate = averageRate(toExecutedDailyRates(lastWeekExecutions, lastMonday, daysPassed));
+        int completionRate = averageRate(toExecutedDailyRates(thisWeekExecutions, monday, daysPassed, false));
+        int lastWeekCompletionRate = averageRate(toExecutedDailyRates(lastWeekExecutions, lastMonday, 7, true));
         int completionRateDiff = completionRate - lastWeekCompletionRate;
 
         int totalDurationSecond = thisWeekExecutions.stream()
@@ -109,7 +109,9 @@ public class RoutineExecutionConverter {
                 .build();
     }
 
-    private static List<Integer> toExecutedDailyRates(List<RoutineExecution> executions, LocalDate startDate, int dayCount) {
+    private static List<Integer> toExecutedDailyRates(
+            List<RoutineExecution> executions, LocalDate startDate, int dayCount, boolean includeMissingAsZero
+    ) {
         Map<LocalDate, List<RoutineExecution>> executionsByDate = executions.stream()
                 .collect(Collectors.groupingBy(RoutineExecution::getExecutedDate));
 
@@ -119,6 +121,8 @@ public class RoutineExecutionConverter {
             List<RoutineExecution> dayExecutions = executionsByDate.get(date);
             if (dayExecutions != null && !dayExecutions.isEmpty()) {
                 rates.add(calculateRate(dayExecutions));
+            } else if (includeMissingAsZero) {
+                rates.add(0);
             }
         }
         return rates;
