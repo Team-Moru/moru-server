@@ -43,13 +43,17 @@ public class RoutineExecutionConverter {
 
     public static List<RoutineExecutionResponseDTO.DailyExecution> toMonthlyResponse(
             YearMonth yearMonth,
-            Map<LocalDate, List<RoutineExecution>> executionsByDate
+            Map<LocalDate, List<RoutineExecution>> executionsByDate,
+            LocalDate today
     ){
         List<RoutineExecutionResponseDTO.DailyExecution> result = new ArrayList<>();
 
-        int daysInMonth = yearMonth.lengthOfMonth();
-        for (int day = 1; day <= daysInMonth; day++) {
-            LocalDate date = yearMonth.atDay(day);
+        LocalDate lastDay = yearMonth.atEndOfMonth().isAfter(today) ? today : yearMonth.atEndOfMonth();
+        if (lastDay.isBefore(yearMonth.atDay(1))) {
+            return result;
+        }
+
+        for (LocalDate date = yearMonth.atDay(1); !date.isAfter(lastDay); date = date.plusDays(1)) {
             List<RoutineExecution> executions = executionsByDate.getOrDefault(date, List.of());
 
             int totalCount = executions.size();

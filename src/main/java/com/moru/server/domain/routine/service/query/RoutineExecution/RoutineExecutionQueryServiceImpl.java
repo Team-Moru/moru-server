@@ -41,7 +41,8 @@ public class RoutineExecutionQueryServiceImpl implements RoutineExecutionQuerySe
         Map<LocalDate, List<RoutineExecution>> executionsByDate = executions.stream()
                 .collect(Collectors.groupingBy(RoutineExecution::getExecutedDate));
 
-        return RoutineExecutionConverter.toMonthlyResponse(yearMonth, executionsByDate);
+        LocalDate today = LocalDate.now(SERVICE_ZONE);
+        return RoutineExecutionConverter.toMonthlyResponse(yearMonth, executionsByDate, today);
     }
 
     @Override
