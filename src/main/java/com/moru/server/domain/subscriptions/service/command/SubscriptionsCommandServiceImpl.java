@@ -37,11 +37,13 @@ public class SubscriptionsCommandServiceImpl implements SubscriptionsCommandServ
         LocalDateTime now = LocalDateTime.now(SERVICE_ZONE);
         Subscriptions subscription = subscriptionsRepository.findByMember_Id(memberId).orElse(null);
 
-        if (subscription != null) {
+        if (subscription != null && subscription.getPlan() == Plan.PRO) {
             LocalDateTime base = (subscription.getExpiresAt() != null && subscription.getExpiresAt().isAfter(now))
                     ? subscription.getExpiresAt()
                     : now;
             subscription.renew(base.plusMonths(1), request.store(), request.storeTransactionId());
+        } else if (subscription != null) {
+            subscription.activatePro(now, now.plusMonths(1), request.store(), request.storeTransactionId());
         } else {
             subscription = subscriptionsRepository.save(Subscriptions.builder()
                     .plan(Plan.PRO)

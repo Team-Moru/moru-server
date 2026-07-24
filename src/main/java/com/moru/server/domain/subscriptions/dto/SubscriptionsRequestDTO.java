@@ -4,6 +4,7 @@ import com.moru.server.domain.subscriptions.entity.enums.Store;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public record SubscriptionsRequestDTO() {
 
@@ -14,6 +15,7 @@ public record SubscriptionsRequestDTO() {
             Store store,
 
             @NotBlank(message = "storeTransactionId는 필수입니다.")
+            @Size(max = 255, message = "storeTransactionId는 255자 이하여야 합니다.")
             @Schema(description = "스토어 거래 ID", example = "1000000012345678")
             String storeTransactionId
     ) {
