@@ -24,4 +24,21 @@ public record SubscriptionsResponseDTO() {
             Boolean isActive
     ) {
     }
+
+    @Builder
+    @Schema(description = "구독 등록 응답")
+    public record SubscriptionCreateResponse(
+            @Schema(description = "구독 고유번호", example = "1")
+            Long subscriptionId,
+
+            @Schema(description = "구독 플랜", example = "PRO")
+            Plan plan,
+
+            @Schema(description = "구독 시작 시간", example = "2026-06-01T00:00:00")
+            LocalDateTime startedAt,
+
+            @Schema(description = "구독 만료 시간", example = "2026-08-01T00:00:00")
+            LocalDateTime expiresAt
+    ) {
+    }
 }

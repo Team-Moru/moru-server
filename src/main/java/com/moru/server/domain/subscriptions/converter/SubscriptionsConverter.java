@@ -30,4 +30,13 @@ public class SubscriptionsConverter {
                 .isActive(isActive)
                 .build();
     }
+
+    public static SubscriptionsResponseDTO.SubscriptionCreateResponse toSubscriptionCreateResponse(Subscriptions subscription) {
+        return SubscriptionsResponseDTO.SubscriptionCreateResponse.builder()
+                .subscriptionId(subscription.getId())
+                .plan(subscription.getPlan())
+                .startedAt(subscription.getStartedAt())
+                .expiresAt(subscription.getExpiresAt())
+                .build();
+    }
 }

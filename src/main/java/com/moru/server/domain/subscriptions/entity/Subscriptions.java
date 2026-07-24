@@ -47,4 +47,11 @@ public class Subscriptions extends BaseEntity {
         return this.plan == Plan.PRO
                 && (this.expiresAt == null || this.expiresAt.isAfter(LocalDateTime.now()));
     }
+
+    public void renew(LocalDateTime expiresAt, Store store, String storeTransactionId) {
+        this.plan = Plan.PRO;
+        this.expiresAt = expiresAt;
+        this.store = store;
+        this.storeTransactionId = storeTransactionId;
+    }
 }
