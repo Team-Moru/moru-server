@@ -92,7 +92,7 @@ public class RoutineExecutionConverter {
         LocalDate lastMonday = monday.minusWeeks(1);
 
         int completionRate = averageRate(toExecutedDailyRates(thisWeekExecutions, monday, daysPassed));
-        int lastWeekCompletionRate = averageRate(toExecutedDailyRates(lastWeekExecutions, lastMonday, daysPassed));
+        int lastWeekCompletionRate = averageRate(toExecutedDailyRates(lastWeekExecutions, lastMonday, 7));
         int completionRateDiff = completionRate - lastWeekCompletionRate;
 
         int totalDurationSecond = thisWeekExecutions.stream()
