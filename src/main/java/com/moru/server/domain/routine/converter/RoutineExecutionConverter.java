@@ -116,9 +116,11 @@ public class RoutineExecutionConverter {
                     re->re.getDurationSecond() != null ? re.getDurationSecond():0
             ).sum();
 
-            LocalTime actualWakeTime = list.stream().map(RoutineExecution::getActualWakeTime)
+            LocalTime actualWakeTime = list.stream()
+                    .map(RoutineExecution::getActualWakeTime)
                     .filter(Objects::nonNull)
-                    .findFirst().orElse(null);
+                    .min(LocalTime::compareTo)
+                    .orElse(null);
             
             List<RoutineExecutionResponseDTO.RoutineResult> routineResults = list.stream()
                 .map(re -> new RoutineExecutionResponseDTO.RoutineResult(
