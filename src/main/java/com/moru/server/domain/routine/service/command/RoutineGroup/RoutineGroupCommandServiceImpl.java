@@ -31,9 +31,6 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
     private final RoutineStepGenerator routineStepGenerator;
 
     // 루틴 그룹 생성
-    // AI(Gemini) 호출이 있어 클래스/메서드에 @Transactional을 걸지 않는다.
-    // (RoutineExecutionCommandServiceImpl.judgeUserResponse와 동일 패턴)
-    // → Gemini는 트랜잭션 밖에서 호출하고, save() 자체 원자성으로 그룹+루틴+step을 함께 저장.
     @Override
     public RoutineGroupResponseDTO.DetailResponse createRoutineGroup(
             Long memberId,
@@ -46,7 +43,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
 
-        // TIMER step 텍스트 생성 (외부 호출, 트랜잭션 밖). CHECK/INPUT은 제목 1개.
+
         List<List<String>> stepContents = buildStepContents(request.routines());
 
         RoutineGroup routineGroup = RoutineGroup.builder()
@@ -87,11 +84,6 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         return routines;
     }
 
-    /**
-     * 요청 순서대로 각 루틴의 step 텍스트 목록을 만든다.
-     * TIMER는 Gemini로 배치 분해(1회 호출), CHECK/INPUT은 제목 1개.
-     * Gemini 실패/빈 응답 시 해당 루틴은 제목 1개로 대체(생성 자체는 성공시킴).
-     */
     private List<List<String>> buildStepContents(List<RoutineGroupRequestDTO.RoutineRequest> routines) {
         List<String> timerTitles = new ArrayList<>();
         for (RoutineGroupRequestDTO.RoutineRequest r : routines) {
@@ -138,7 +130,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         }
     }
 
-    //루틴 그룹 삭제 (순수 DB → @Transactional, saveExecutionResult와 동일 패턴)
+
     @Override
     @Transactional
     public RoutineGroupResponseDTO.DeleteResponse deleteRoutineGroup(Long memberId, Long routineGroupId) {
@@ -154,7 +146,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         return RoutineGroupConverter.toDeleteResponse(routineGroupId);
     }
 
-    // 루틴 그룹 토글 (순수 DB → @Transactional)
+
     @Override
     @Transactional
     public RoutineGroupResponseDTO.ActiveResponse updateActive(
@@ -175,9 +167,6 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
     }
 
     //루틴 항목 추가
-    // AI 호출 포함 → @Transactional 없음(judgeUserResponse 패턴).
-    // 비관락(findByIdForUpdate) 대신 findById 사용: 그룹은 단일 소유자라 동시 추가가 사실상 없어 orderIndex 경합 위험이 없다.
-    // (동시성 보장이 꼭 필요하면 findByIdForUpdate로 바꾸고 이 메서드에 @Transactional을 붙일 것)
     @Override
     public RoutineGroupResponseDTO.RoutineResponse addRoutine(
             Long memberId,
@@ -188,12 +177,12 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
                 .filter(rg -> rg.isOwnedBy(memberId))
                 .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
 
+        // step 텍스트 생성 (외부 호출, 트랜잭션 밖)
+        List<String> stepContents = buildSingleStepContents(request);
+
         int nextOrderIndex = routineRepository.findMaxOrderIndexByRoutineGroupId(routineGroupId)
                 .map(max -> max + 1)
                 .orElse(0);
-
-        // step 텍스트 생성 (외부 호출, 트랜잭션 밖)
-        List<String> stepContents = buildSingleStepContents(request);
 
         Routine routine = Routine.builder()
                 .title(request.title())

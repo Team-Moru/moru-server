@@ -59,6 +59,10 @@ public class GeminiRoutineStepGenerator implements RoutineStepGenerator {
                 .retrieve()
                 .body(Map.class);
 
+        if (response ==null){
+            throw stepGenerationFailed("Gemini 응답 본문이 비어 있습니다.");
+        }
+
         return parseResponse(response, timerRoutineTitles.size());
     }
 
