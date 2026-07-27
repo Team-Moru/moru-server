@@ -33,6 +33,7 @@ public interface RoutineGroupRepository extends JpaRepository<RoutineGroup, Long
     select distinct rg from RoutineGroup rg
     left join fetch rg.routines
     where rg.goalType = :goalType and rg.isTemplate = true
+    order by rg.createdAt asc
 """)
     List<RoutineGroup> findTemplatesWithRoutinesByGoalType(@Param("goalType") RoutineGoalType goalType);
 }
