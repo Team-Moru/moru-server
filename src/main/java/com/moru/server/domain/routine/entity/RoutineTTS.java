@@ -25,6 +25,12 @@ public class RoutineTTS extends BaseEntity {
     @Column(name = "content", nullable = false, length = 255)
     private String content;
 
+    @Column(name = "tts_intro", length = 255)
+    private String ttsIntro;
+
+    @Column(name = "tts_done", length = 255)
+    private String ttsDone;
+
 
     @Column(name = "order_index", nullable = false)
     private Integer orderIndex;
@@ -38,9 +44,11 @@ public class RoutineTTS extends BaseEntity {
     @Column(name = "s3_url")
     private String s3Url;
 
-    public void markCompleted(String s3Url) {
+    public void markCompleted(String s3Url, String ttsIntro, String ttsDone) {
         this.ttsStatus = TtsStatus.COMPLETED;
         this.s3Url = s3Url;
+        this.ttsIntro = ttsIntro;
+        this.ttsDone = ttsDone;
     }
 
     public void markFailed() {
