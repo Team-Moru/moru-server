@@ -1,6 +1,7 @@
 package com.moru.server.domain.routine.repository;
 
 import com.moru.server.domain.routine.entity.RoutineGroup;
+import com.moru.server.domain.routine.entity.enums.RoutineGoalType;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -27,4 +28,12 @@ public interface RoutineGroupRepository extends JpaRepository<RoutineGroup, Long
     Optional<RoutineGroup> findFirstByMember_IdAndIsActiveTrueOrderByCreatedAtDesc(Long memberId);
 
     List<RoutineGroup> findAllByMember_Id(Long memberId);
+
+    @Query("""
+    select distinct rg from RoutineGroup rg
+    left join fetch rg.routines
+    where rg.goalType = :goalType and rg.isTemplate = true
+    order by rg.createdAt asc
+""")
+    List<RoutineGroup> findTemplatesWithRoutinesByGoalType(@Param("goalType") RoutineGoalType goalType);
 }

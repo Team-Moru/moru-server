@@ -40,11 +40,26 @@ public class Subscriptions extends BaseEntity {
     private String storeTransactionId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", nullable = false)
+    @JoinColumn(name = "member_id", nullable = false, unique = true)
     private Member member;
 
     public boolean isActive() {
         return this.plan == Plan.PRO
                 && (this.expiresAt == null || this.expiresAt.isAfter(LocalDateTime.now()));
+    }
+
+    public void renew(LocalDateTime expiresAt, Store store, String storeTransactionId) {
+        this.plan = Plan.PRO;
+        this.expiresAt = expiresAt;
+        this.store = store;
+        this.storeTransactionId = storeTransactionId;
+    }
+
+    public void activatePro(LocalDateTime startedAt, LocalDateTime expiresAt, Store store, String storeTransactionId) {
+        this.plan = Plan.PRO;
+        this.startedAt = startedAt;
+        this.expiresAt = expiresAt;
+        this.store = store;
+        this.storeTransactionId = storeTransactionId;
     }
 }

@@ -41,13 +41,17 @@ public class RoutineExecutionConverter {
 
     public static List<RoutineExecutionResponseDTO.DailyExecution> toMonthlyResponse(
             YearMonth yearMonth,
-            Map<LocalDate, List<RoutineExecution>> executionsByDate
+            Map<LocalDate, List<RoutineExecution>> executionsByDate,
+            LocalDate today
     ){
         List<RoutineExecutionResponseDTO.DailyExecution> result = new ArrayList<>();
 
-        int daysInMonth = yearMonth.lengthOfMonth();
-        for (int day = 1; day <= daysInMonth; day++) {
-            LocalDate date = yearMonth.atDay(day);
+        LocalDate lastDay = yearMonth.atEndOfMonth().isAfter(today) ? today : yearMonth.atEndOfMonth();
+        if (lastDay.isBefore(yearMonth.atDay(1))) {
+            return result;
+        }
+
+        for (LocalDate date = yearMonth.atDay(1); !date.isAfter(lastDay); date = date.plusDays(1)) {
             List<RoutineExecution> executions = executionsByDate.getOrDefault(date, List.of());
 
             int totalCount = executions.size();
@@ -89,8 +93,8 @@ public class RoutineExecutionConverter {
         int daysPassed = (int) ChronoUnit.DAYS.between(monday, today) + 1;
         LocalDate lastMonday = monday.minusWeeks(1);
 
-        int completionRate = averageRate(toExecutedDailyRates(thisWeekExecutions, monday, daysPassed));
-        int lastWeekCompletionRate = averageRate(toExecutedDailyRates(lastWeekExecutions, lastMonday, daysPassed));
+        int completionRate = averageRate(toExecutedDailyRates(thisWeekExecutions, monday, daysPassed, false));
+        int lastWeekCompletionRate = averageRate(toExecutedDailyRates(lastWeekExecutions, lastMonday, 7, true));
         int completionRateDiff = completionRate - lastWeekCompletionRate;
 
         int totalDurationSecond = thisWeekExecutions.stream()
@@ -111,18 +115,17 @@ public class RoutineExecutionConverter {
             LocalDate executedDate, Long currentStreak,
             List<RoutineExecution> list) {
 
+        Integer totalDurationSecond = list.stream()
+                .mapToInt(re -> re.getDurationSecond() != null ? re.getDurationSecond() : 0)
+                .sum();
 
-            Integer totalDurationSecond = list.stream().mapToInt(
-                    re->re.getDurationSecond() != null ? re.getDurationSecond():0
-            ).sum();
+        LocalTime actualWakeTime = list.stream()
+                .map(RoutineExecution::getActualWakeTime)
+                .filter(Objects::nonNull)
+                .min(LocalTime::compareTo)
+                .orElse(null);
 
-            LocalTime actualWakeTime = list.stream()
-                    .map(RoutineExecution::getActualWakeTime)
-                    .filter(Objects::nonNull)
-                    .min(LocalTime::compareTo)
-                    .orElse(null);
-            
-            List<RoutineExecutionResponseDTO.RoutineResult> routineResults = list.stream()
+        List<RoutineExecutionResponseDTO.RoutineResult> routineResults = list.stream()
                 .map(re -> new RoutineExecutionResponseDTO.RoutineResult(
                         re.getRoutine().getId(),
                         re.getRoutine().getTitle(),
@@ -143,9 +146,9 @@ public class RoutineExecutionConverter {
                 .build();
     }
 
-
-
-    private static List<Integer> toExecutedDailyRates(List<RoutineExecution> executions, LocalDate startDate, int dayCount) {
+    private static List<Integer> toExecutedDailyRates(
+            List<RoutineExecution> executions, LocalDate startDate, int dayCount, boolean includeMissingAsZero
+    ) {
         Map<LocalDate, List<RoutineExecution>> executionsByDate = executions.stream()
                 .collect(Collectors.groupingBy(RoutineExecution::getExecutedDate));
 
@@ -155,6 +158,8 @@ public class RoutineExecutionConverter {
             List<RoutineExecution> dayExecutions = executionsByDate.get(date);
             if (dayExecutions != null && !dayExecutions.isEmpty()) {
                 rates.add(calculateRate(dayExecutions));
+            } else if (includeMissingAsZero) {
+                rates.add(0);
             }
         }
         return rates;
