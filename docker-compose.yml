@@ -16,5 +16,20 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
 
+  redis:
+    image: redis:7.4-alpine
+    container_name: moru-redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - moru-redis-data:/data
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
 volumes:
   moru-mysql-data:
+  moru-redis-data:
