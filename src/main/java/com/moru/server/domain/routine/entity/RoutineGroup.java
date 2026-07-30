@@ -8,8 +8,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Entity
 @Builder
@@ -93,6 +93,15 @@ public class RoutineGroup extends BaseEntity {
         this.isActive = isActive;
     }
 
+    public boolean hasOverlappingAlarmDays(String otherAlarmDays) {
+        return !Collections.disjoint(parseAlarmDays(this.alarmDays), parseAlarmDays(otherAlarmDays));
+    }
+
+    private static Set<String> parseAlarmDays(String alarmDays) {
+        return Arrays.stream(alarmDays.split(","))
+                .map(String::trim)
+                .collect(Collectors.toSet());
+    }
     public Routine addRoutine(String title, RoutineType type, Integer timer, Integer orderIndex) {
         Routine routine = Routine.builder()
                 .title(title)

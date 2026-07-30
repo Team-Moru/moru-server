@@ -39,6 +39,8 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
 
+        validateNoAlarmDayConflict(memberId, request.alarmDays(), null);
+
         RoutineGroup routineGroup = RoutineGroup.builder()
                 .title(request.title())
                 .description(request.description())
@@ -103,6 +105,10 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             throw new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND);
         }
 
+        if (Boolean.TRUE.equals(request.isActive())) {
+            validateNoAlarmDayConflict(memberId, routineGroup.getAlarmDays(), routineGroupId);
+        }
+
         routineGroup.updateActive(request.isActive());
 
         return RoutineGroupConverter.toActiveResponse(routineGroup);
@@ -134,5 +140,17 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         Routine savedRoutine = routineRepository.save(routine);
 
         return RoutineGroupConverter.toRoutineResponse(savedRoutine);
+    }
+
+    private void validateNoAlarmDayConflict(Long memberId, String alarmDays, Long excludeRoutineGroupId) {
+        List<RoutineGroup> activeGroups = routineGroupRepository.findByMember_IdAndIsActiveTrue(memberId);
+        for (RoutineGroup group : activeGroups) {
+            if (excludeRoutineGroupId != null && group.getId().equals(excludeRoutineGroupId)) {
+                continue;
+            }
+            if (group.hasOverlappingAlarmDays(alarmDays)) {
+                throw new BusinessException(ErrorStatus.ROUTINE_ALARM_DAYS_CONFLICT);
+            }
+        }
     }
 }

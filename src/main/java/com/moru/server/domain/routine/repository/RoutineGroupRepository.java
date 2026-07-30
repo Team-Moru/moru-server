@@ -36,4 +36,6 @@ public interface RoutineGroupRepository extends JpaRepository<RoutineGroup, Long
     order by rg.createdAt asc
 """)
     List<RoutineGroup> findTemplatesWithRoutinesByGoalType(@Param("goalType") RoutineGoalType goalType);
+
+    List<RoutineGroup> findByMember_IdAndIsActiveTrue(Long memberId);
 }
