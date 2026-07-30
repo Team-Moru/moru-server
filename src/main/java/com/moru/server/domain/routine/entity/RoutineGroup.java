@@ -98,10 +98,16 @@ public class RoutineGroup extends BaseEntity {
     }
 
     private static Set<String> parseAlarmDays(String alarmDays) {
+        if (alarmDays == null || alarmDays.isBlank()) {
+            return Collections.emptySet();
+        }
         return Arrays.stream(alarmDays.split(","))
                 .map(String::trim)
+                .filter(s -> !s.isEmpty())
                 .collect(Collectors.toSet());
     }
+
+
     public Routine addRoutine(String title, RoutineType type, Integer timer, Integer orderIndex) {
         Routine routine = Routine.builder()
                 .title(title)

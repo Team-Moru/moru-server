@@ -36,7 +36,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             throw new BusinessException(ErrorStatus.ROUTINE_EMPTY);
         }
 
-        Member member = memberRepository.findById(memberId)
+        Member member = memberRepository.findByIdForUpdate(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
 
         validateNoAlarmDayConflict(memberId, request.alarmDays(), null);
@@ -106,6 +106,8 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         }
 
         if (Boolean.TRUE.equals(request.isActive())) {
+            memberRepository.findByIdForUpdate(memberId)
+                    .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
             validateNoAlarmDayConflict(memberId, routineGroup.getAlarmDays(), routineGroupId);
         }
 
