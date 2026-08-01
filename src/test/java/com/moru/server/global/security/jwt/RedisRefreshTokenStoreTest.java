@@ -1,6 +1,7 @@
 package com.moru.server.global.security.jwt;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.util.List;
@@ -20,6 +21,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+
+import com.moru.server.global.exception.BusinessException;
+import com.moru.server.global.response.code.status.ErrorStatus;
 
 @Testcontainers(disabledWithoutDocker = true)
 class RedisRefreshTokenStoreTest {
@@ -106,6 +110,14 @@ class RedisRefreshTokenStoreTest {
 
         assertThat(refreshTokenStore.deleteIfMatches(memberId, "token-hash")).isTrue();
         assertThat(redisTemplate.hasKey(key(memberId))).isFalse();
+    }
+
+    @Test
+    void rejectsNonPositiveRefreshTokenTtlWithBusinessException() {
+        assertThatThrownBy(() -> refreshTokenStore.save(4L, "token-hash", Duration.ZERO))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getBaseCode()).isEqualTo(ErrorStatus.INTERNAL_SERVER_ERROR)
+                );
     }
 
     private Callable<Boolean> rotateWhenStarted(

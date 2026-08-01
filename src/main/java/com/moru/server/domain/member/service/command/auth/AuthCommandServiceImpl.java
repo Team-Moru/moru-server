@@ -210,6 +210,8 @@ public class AuthCommandServiceImpl implements AuthCommandService {
 
         deleteMemberRelatedData(memberId);
         memberRepository.delete(member);
+        memberRepository.flush();
+        refreshTokenStore.deleteByMemberId(memberId);
 
         return AuthResponseDTO.WithdrawalResponse.builder()
                 .message(WITHDRAWAL_COMPLETE_MESSAGE)
@@ -217,7 +219,6 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     }
 
     private void deleteMemberRelatedData(Long memberId) {
-        refreshTokenStore.deleteByMemberId(memberId);
         routineGroupRepository.deleteAll(routineGroupRepository.findAllByMember_Id(memberId));
         subscriptionsRepository.deleteAllByMember_Id(memberId);
         memberTermRepository.deleteAllByMember_Id(memberId);

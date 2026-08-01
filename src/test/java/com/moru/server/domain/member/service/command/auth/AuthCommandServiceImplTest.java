@@ -6,16 +6,20 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -30,6 +34,9 @@ import com.moru.server.domain.member.entity.enums.LoginType;
 import com.moru.server.domain.member.entity.enums.OAuthProvider;
 import com.moru.server.domain.member.entity.enums.Role;
 import com.moru.server.domain.member.repository.MemberRepository;
+import com.moru.server.domain.member.repository.MemberTermRepository;
+import com.moru.server.domain.routine.repository.RoutineGroupRepository;
+import com.moru.server.domain.subscriptions.repository.SubscriptionsRepository;
 import com.moru.server.global.exception.BusinessException;
 import com.moru.server.global.response.code.status.ErrorStatus;
 import com.moru.server.global.security.jwt.JwtTokenProvider;
@@ -43,6 +50,15 @@ class AuthCommandServiceImplTest {
 
     @Mock
     private RefreshTokenStore refreshTokenStore;
+
+    @Mock
+    private MemberTermRepository memberTermRepository;
+
+    @Mock
+    private RoutineGroupRepository routineGroupRepository;
+
+    @Mock
+    private SubscriptionsRepository subscriptionsRepository;
 
     @Mock
     private KakaoOAuthClient kakaoOAuthClient;
@@ -130,5 +146,48 @@ class AuthCommandServiceImplTest {
         assertThat(response.refreshToken()).isEqualTo("refresh-token");
         verify(memberRepository, times(2))
                 .findByLoginTypeAndOauthId(LoginType.GOOGLE, oauthId);
+    }
+
+    @Test
+    void deletesRedisRefreshTokenAfterMemberDeletionIsFlushed() {
+        Long memberId = 1L;
+        Member member = Member.builder()
+                .id(memberId)
+                .oauthId("google-member-id")
+                .nickname("모루")
+                .role(Role.MEMBER)
+                .loginType(LoginType.GOOGLE)
+                .build();
+        when(memberRepository.findById(memberId)).thenReturn(Optional.of(member));
+        when(routineGroupRepository.findAllByMember_Id(memberId)).thenReturn(List.of());
+
+        authCommandService.withdraw(memberId);
+
+        InOrder inOrder = inOrder(memberRepository, refreshTokenStore);
+        inOrder.verify(memberRepository).delete(member);
+        inOrder.verify(memberRepository).flush();
+        inOrder.verify(refreshTokenStore).deleteByMemberId(memberId);
+    }
+
+    @Test
+    void doesNotDeleteRedisRefreshTokenWhenDatabaseDeletionFails() {
+        Long memberId = 1L;
+        Member member = Member.builder()
+                .id(memberId)
+                .oauthId("google-member-id")
+                .nickname("모루")
+                .role(Role.MEMBER)
+                .loginType(LoginType.GOOGLE)
+                .build();
+        when(memberRepository.findById(memberId)).thenReturn(Optional.of(member));
+        when(routineGroupRepository.findAllByMember_Id(memberId)).thenReturn(List.of());
+        doThrow(new DataIntegrityViolationException("member deletion failed"))
+                .when(memberRepository)
+                .flush();
+
+        assertThatThrownBy(() -> authCommandService.withdraw(memberId))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        verify(refreshTokenStore, never()).deleteByMemberId(memberId);
     }
 }

@@ -7,6 +7,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
+import com.moru.server.global.exception.BusinessException;
+import com.moru.server.global.response.code.status.ErrorStatus;
+
 @Component
 public class RedisRefreshTokenStore implements RefreshTokenStore {
 
@@ -37,7 +40,7 @@ public class RedisRefreshTokenStore implements RefreshTokenStore {
 
     @Override
     public void save(Long memberId, String tokenHash, Duration ttl) {
-        redisTemplate.opsForValue().set(key(memberId), tokenHash, ttl);
+        redisTemplate.opsForValue().set(key(memberId), tokenHash, Duration.ofMillis(toPositiveMillis(ttl)));
     }
 
     @Override
@@ -77,7 +80,7 @@ public class RedisRefreshTokenStore implements RefreshTokenStore {
         long ttlMillis = ttl.toMillis();
 
         if (ttlMillis <= 0) {
-            throw new IllegalArgumentException("Refresh Token TTL은 1밀리초 이상이어야 합니다.");
+            throw new BusinessException(ErrorStatus.INTERNAL_SERVER_ERROR);
         }
 
         return ttlMillis;
