@@ -9,4 +9,6 @@ public interface RoutineExecutionQueryService {
     List<RoutineExecutionResponseDTO.DailyExecution> getMonthlyExecutions(Long memberId, int year, int month);
 
     RoutineExecutionResponseDTO.WeeklyReportResponse getWeeklyReport(Long memberId);
+
+    RoutineExecutionResponseDTO.WakePatternResponse getWakePattern(Long memberId);
 }

@@ -86,6 +86,26 @@ public record RoutineExecutionResponseDTO() {
     ){}
 
     @Builder
+    @Schema(description = "기상 패턴 분석 응답")
+    public record WakePatternResponse(
+
+            @Schema(description = "최근 7일 평균 기상 시각 (HH:mm). 데이터 없으면 null", example = "07:08", nullable = true)
+            String avgWakeTime,
+
+            @Schema(description = "지난주 평균 대비 기상 시각 차이(분). 음수=일찍, 양수=늦게. 지난주 데이터 없으면 null", example = "-12", nullable = true)
+            Integer wakeTimeDiffMin,
+
+            @Schema(description = "기상 규칙성 점수 (0~100). 유효 데이터 3일 미만이면 null", example = "73", nullable = true)
+            Integer regularityScore,
+
+            @Schema(description = "최근 7일 기상 시각 표준편차(분). 유효 데이터 3일 미만이면 null", example = "18", nullable = true)
+            Integer stdDevMin,
+
+            @Schema(description = "규칙성 점수 기반 안내 문구", example = "꽤 규칙적이에요")
+            String regularityLabel
+    ){}
+
+    @Builder
     @Schema(description ="루틴 AI 확인 결과 응답")
     public record AiResponseRes(
             @Schema(description = "AI 응답 상세 내역", example = "다음으로 넘어갈게요 !")

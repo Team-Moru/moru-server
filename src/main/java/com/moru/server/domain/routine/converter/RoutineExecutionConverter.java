@@ -6,12 +6,14 @@ import com.moru.server.domain.routine.entity.Routine;
 import com.moru.server.domain.routine.entity.RoutineExecution;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.stream.Collectors;
 
 public class RoutineExecutionConverter {
@@ -188,6 +190,90 @@ public class RoutineExecutionConverter {
                 })
                 .sorted(Comparator.comparing(RoutineExecutionResponseDTO.RoutineStat::routineId))
                 .toList();
+    }
+
+    public static RoutineExecutionResponseDTO.WakePatternResponse toWakePatternResponse(
+            List<RoutineExecution> thisWeekExecutions,
+            List<RoutineExecution> lastWeekExecutions
+    ){
+        List<Integer> thisWeekWakeMinutes = toDailyWakeMinutes(thisWeekExecutions);
+        List<Integer> lastWeekWakeMinutes = toDailyWakeMinutes(lastWeekExecutions);
+
+        OptionalDouble thisWeekAvg = average(thisWeekWakeMinutes);
+        OptionalDouble lastWeekAvg = average(lastWeekWakeMinutes);
+
+        String avgWakeTime = thisWeekAvg.isPresent() ? toTimeString(thisWeekAvg.getAsDouble()) : null;
+
+        Integer wakeTimeDiffMin = (thisWeekAvg.isPresent() && lastWeekAvg.isPresent())
+                ? (int) Math.round(thisWeekAvg.getAsDouble() - lastWeekAvg.getAsDouble())
+                : null;
+
+        Integer regularityScore = null;
+        Integer stdDevMin = null;
+        if (thisWeekWakeMinutes.size() >= 3) {
+            double stdDev = populationStdDev(thisWeekWakeMinutes, thisWeekAvg.getAsDouble());
+            stdDevMin = (int) Math.round(stdDev);
+            regularityScore = Math.max(0, (int) Math.round(100 * (1 - stdDev / 120)));
+        }
+
+        return RoutineExecutionResponseDTO.WakePatternResponse.builder()
+                .avgWakeTime(avgWakeTime)
+                .wakeTimeDiffMin(wakeTimeDiffMin)
+                .regularityScore(regularityScore)
+                .stdDevMin(stdDevMin)
+                .regularityLabel(toRegularityLabel(regularityScore))
+                .build();
+    }
+
+    private static List<Integer> toDailyWakeMinutes(List<RoutineExecution> executions) {
+        Map<LocalDate, RoutineExecution> latestByDate = executions.stream()
+                .collect(Collectors.toMap(
+                        RoutineExecution::getExecutedDate,
+                        execution -> execution,
+                        (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b
+                ));
+
+        return latestByDate.values().stream()
+                .map(execution -> toMinutesOfDay(execution.getActualWakeTime()))
+                .toList();
+    }
+
+    private static int toMinutesOfDay(LocalTime time) {
+        return time.getHour() * 60 + time.getMinute();
+    }
+
+    private static OptionalDouble average(List<Integer> minutes) {
+        return minutes.stream().mapToInt(Integer::intValue).average();
+    }
+
+    private static double populationStdDev(List<Integer> minutes, double mean) {
+        return Math.sqrt(minutes.stream()
+                .mapToDouble(minute -> Math.pow(minute - mean, 2))
+                .average()
+                .orElse(0));
+    }
+
+    private static String toTimeString(double avgMinutes) {
+        int totalMinutes = (int) Math.round(avgMinutes);
+        int hour = (totalMinutes / 60) % 24;
+        int minute = totalMinutes % 60;
+        return String.format("%02d:%02d", hour, minute);
+    }
+
+    private static String toRegularityLabel(Integer score) {
+        if (score == null) {
+            return "측정 중";
+        }
+        if (score >= 90) {
+            return "매우 규칙적이에요";
+        }
+        if (score >= 70) {
+            return "꽤 규칙적이에요";
+        }
+        if (score >= 50) {
+            return "보통이에요";
+        }
+        return "불규칙해요";
     }
 
     private static int calculateRate(List<RoutineExecution> executions) {

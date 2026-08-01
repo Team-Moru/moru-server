@@ -64,4 +64,23 @@ public class RoutineExecutionQueryServiceImpl implements RoutineExecutionQuerySe
 
         return RoutineExecutionConverter.toWeeklyReportResponse(thisWeekExecutions, lastWeekExecutions, monday, today);
     }
+
+    @Override
+    public RoutineExecutionResponseDTO.WakePatternResponse getWakePattern(Long memberId) {
+        if (!routineExecutionRepository.existsByMemberId(memberId)) {
+            return null;
+        }
+
+        LocalDate today = LocalDate.now(SERVICE_ZONE);
+        LocalDate thisWeekStart = today.minusDays(6);
+        LocalDate lastWeekStart = today.minusDays(13);
+        LocalDate lastWeekEnd = today.minusDays(7);
+
+        List<RoutineExecution> thisWeekExecutions = routineExecutionRepository
+                .findAllByMemberIdAndExecutedDateBetweenAndActualWakeTimeIsNotNull(memberId, thisWeekStart, today);
+        List<RoutineExecution> lastWeekExecutions = routineExecutionRepository
+                .findAllByMemberIdAndExecutedDateBetweenAndActualWakeTimeIsNotNull(memberId, lastWeekStart, lastWeekEnd);
+
+        return RoutineExecutionConverter.toWakePatternResponse(thisWeekExecutions, lastWeekExecutions);
+    }
 }
