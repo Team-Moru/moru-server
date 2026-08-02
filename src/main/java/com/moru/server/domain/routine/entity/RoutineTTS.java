@@ -28,10 +28,10 @@ public class RoutineTTS extends BaseEntity {
     @Column(name = "content", nullable = false, length = CONTENT_MAX_LENGTH)
     private String content;
 
-    @Column(name = "tts_intro", length = 255)
+    @Column(name = "tts_intro", length = CONTENT_MAX_LENGTH)
     private String ttsIntro;
 
-    @Column(name = "tts_done", length = 255)
+    @Column(name = "tts_done", length = CONTENT_MAX_LENGTH)
     private String ttsDone;
 
 
@@ -50,11 +50,21 @@ public class RoutineTTS extends BaseEntity {
     public void markCompleted(String s3Url, String ttsIntro, String ttsDone) {
         this.ttsStatus = TtsStatus.COMPLETED;
         this.s3Url = s3Url;
-        this.ttsIntro = ttsIntro;
-        this.ttsDone = ttsDone;
+        this.ttsIntro = truncate(ttsIntro);
+        this.ttsDone = truncate(ttsDone);
     }
 
     public void markFailed() {
         this.ttsStatus = TtsStatus.FAILED;
+    }
+
+    public static String truncate(String text) {
+        if (text == null || text.length() <= CONTENT_MAX_LENGTH) {
+            return text;
+        }
+        int end = Character.isHighSurrogate(text.charAt(CONTENT_MAX_LENGTH - 1))
+                ? CONTENT_MAX_LENGTH - 1
+                : CONTENT_MAX_LENGTH;
+        return text.substring(0, end);
     }
 }

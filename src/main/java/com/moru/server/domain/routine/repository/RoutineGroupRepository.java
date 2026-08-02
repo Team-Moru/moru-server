@@ -31,7 +31,7 @@ public interface RoutineGroupRepository extends JpaRepository<RoutineGroup, Long
      * 별도 IN 쿼리로 한 번에 가져온다.
      */
     @Query("""
-        select rg from RoutineGroup rg
+        select distinct rg from RoutineGroup rg
         left join fetch rg.routines
         where rg.id = :routineGroupId
     """)

@@ -67,6 +67,8 @@ public class TTSAsyncService {
             return;
         }
 
+        String uploadedKey = null;
+
         try {
 
             GeminiResponseDTO.AiTtsResult ttsScript = aiClient.generateTtsScript(sourceText);
@@ -74,6 +76,7 @@ public class TTSAsyncService {
 
             String key = "tts/%d-%s.mp3".formatted(routineTtsId, UUID.randomUUID());
             s3Uploader.upload(key, audio, CONTENT_TYPE);
+            uploadedKey = key;
 
             RoutineTTS entity = routineTTSRepository.findById(routineTtsId)
                     .orElseThrow(() -> new IllegalStateException("RoutineTTS 행 없음: " + routineTtsId));
@@ -86,7 +89,20 @@ public class TTSAsyncService {
         } catch (Exception e) {
 
             log.error("[TTS] 실패. routineTtsId={}", routineTtsId, e);
+            deleteQuietly(uploadedKey);
             markFailedQuietly(routineTtsId);
+        }
+    }
+
+    private void deleteQuietly(String key) {
+        if (key == null) {
+            return;
+        }
+        try {
+            s3Uploader.delete(key);
+            log.info("[TTS] 실패로 업로드된 객체를 삭제함. key={}", key);
+        } catch (Exception e) {
+            log.error("[TTS] 업로드된 객체 삭제 실패. key={}", key, e);
         }
     }
 
