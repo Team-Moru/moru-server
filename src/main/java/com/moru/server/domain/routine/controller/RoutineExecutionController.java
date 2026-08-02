@@ -14,15 +14,12 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 
@@ -77,6 +74,15 @@ public class RoutineExecutionController {
             @Valid @RequestBody RoutineExecutionRequestDTO.AiResponseReq req
     ){
         return ApiResponse.onSuccess(routineExecutionCommandService.judgeUserResponse(member.memberId(),req));
+    }
+
+    @Operation(summary = "오늘 루틴 완료 조회", description = "특정 날짜의 루틴 실행 결과(완수율, 스트릭, 총 소요시간, 실제 기상시간, 루틴별 상세)를 조회합니다.")
+    @GetMapping("/daily/{date}")
+    public ApiResponse<RoutineExecutionResponseDTO.DailyResponse> getDailyReport(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ){
+        return ApiResponse.onSuccess(routineExecutionQueryService.getDailyResponse(member.memberId(), date));
     }
 
 }

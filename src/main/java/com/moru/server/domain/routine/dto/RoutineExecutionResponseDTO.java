@@ -1,10 +1,12 @@
 package com.moru.server.domain.routine.dto;
 
 
+import com.moru.server.domain.routine.entity.enums.RoutineType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 public record RoutineExecutionResponseDTO() {
@@ -95,4 +97,45 @@ public record RoutineExecutionResponseDTO() {
             Boolean shouldProceed
     ) {}
 
+
+    @Builder
+    @Schema(description ="루틴 실행 이후 오늘 루틴 완료 페이지  및 오늘의 기록 확인 조회 데이터")
+    public record DailyResponse(
+            @Schema(description = "실행 날짜", example = "2026-07-13")
+            LocalDate executedDate,
+            @Schema(description = "항목 완료율(%)", example = "60")
+            Integer completionRate,
+            @Schema(description = "총 소요시간(초)", example = "3600")
+            Integer totalDurationSecond,
+
+
+            @Schema(description = "실제 기상 시간", example = "09:00")
+            LocalTime actualWakeTime,
+
+            @Schema(description = "스트릭", example = "7")
+            Long currentStreak,
+
+            @Schema(description = "당일 루틴 실행 결과 목록", example = "7")
+            List<RoutineResult> routines
+    ){}
+
+    @Builder
+    public record RoutineResult(
+            @Schema(description = "루틴 ID", example = "1")
+            Long routineId,
+
+
+            @Schema(description = "루틴명", example = "물 마시기")
+            String title,
+
+            @Schema(description = "루틴 타입", example = "CHECK")
+            RoutineType type,
+            @Schema(description = "실행 소요 시간(초)", example = "20")
+            Integer durationSecond,
+            @Schema(description = "완료 여부", example = "true")
+            Boolean isCompleted,
+
+            @Schema(description = "사용자 입력", example = "응, 다음")
+            String memberInput
+    ){}
 }

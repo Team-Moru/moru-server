@@ -6,12 +6,10 @@ import com.moru.server.domain.routine.entity.Routine;
 import com.moru.server.domain.routine.entity.RoutineExecution;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.*;
 import java.time.YearMonth;
-import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 public class RoutineExecutionConverter {
@@ -110,6 +108,41 @@ public class RoutineExecutionConverter {
                 .totalDurationSecond(totalDurationSecond)
                 .weeklyCompletionRate(toDailyCompletionRates(thisWeekExecutions, monday, today))
                 .routineStats(toRoutineStats(thisWeekExecutions, today))
+                .build();
+    }
+
+    public static RoutineExecutionResponseDTO.DailyResponse toDailyResponse(
+            LocalDate executedDate, Long currentStreak,
+            List<RoutineExecution> list) {
+
+        Integer totalDurationSecond = list.stream()
+                .mapToInt(re -> re.getDurationSecond() != null ? re.getDurationSecond() : 0)
+                .sum();
+
+        LocalTime actualWakeTime = list.stream()
+                .map(RoutineExecution::getActualWakeTime)
+                .filter(Objects::nonNull)
+                .min(LocalTime::compareTo)
+                .orElse(null);
+
+        List<RoutineExecutionResponseDTO.RoutineResult> routineResults = list.stream()
+                .map(re -> new RoutineExecutionResponseDTO.RoutineResult(
+                        re.getRoutine().getId(),
+                        re.getRoutine().getTitle(),
+                        re.getRoutine().getType(),
+                        re.getDurationSecond(),
+                        re.getIsCompleted(),
+                        re.getMemberInput()
+                ))
+                .toList();
+
+        return RoutineExecutionResponseDTO.DailyResponse.builder()
+                .executedDate(executedDate)
+                .completionRate(calculateRate(list))
+                .totalDurationSecond(totalDurationSecond)
+                .actualWakeTime(actualWakeTime)
+                .currentStreak(currentStreak)
+                .routines(routineResults)
                 .build();
     }
 
