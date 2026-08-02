@@ -73,8 +73,7 @@ public class RoutineExecutionQueryServiceImpl implements RoutineExecutionQuerySe
         }
 
         List<RoutineExecution> list =routineExecutionRepository.findAllWithRoutineByMemberIdAndExecutedDateBetween(memberId,executedDate,executedDate);
-
-        Long currentStreak = memberQueryService.getStreak(memberId).currentStreak();
+        Long currentStreak = memberQueryService.getStreak(memberId, executedDate).currentStreak();
 
 
         return toDailyResponse(executedDate,currentStreak,list);
