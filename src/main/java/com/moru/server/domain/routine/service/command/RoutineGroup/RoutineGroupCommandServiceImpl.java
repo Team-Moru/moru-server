@@ -217,6 +217,9 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         List<String> stepContents = buildSingleStepContents(request);
 
         Routine savedRoutine = transactionTemplate.execute(status -> {
+            routineGroupRepository.findByIdForUpdate(routineGroupId)
+                    .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
+
             int nextOrderIndex = routineRepository.findMaxOrderIndexByRoutineGroupId(routineGroupId)
                     .map(max -> max + 1)
                     .orElse(0);

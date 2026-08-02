@@ -13,6 +13,9 @@ import lombok.*;
 @Table(name = "routine_tts")
 public class RoutineTTS extends BaseEntity {
 
+
+    public static final int CONTENT_MAX_LENGTH = 255;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -22,7 +25,7 @@ public class RoutineTTS extends BaseEntity {
     private Routine routine;
 
 
-    @Column(name = "content", nullable = false, length = 255)
+    @Column(name = "content", nullable = false, length = CONTENT_MAX_LENGTH)
     private String content;
 
     @Column(name = "tts_intro", length = 255)
