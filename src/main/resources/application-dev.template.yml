@@ -4,6 +4,9 @@ spring:
     url: jdbc:mysql://{HOST}:{PORT}/{DATABASE}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: {USERNAME}
     password: {PASSWORD}
+  data:
+    redis:
+      url: redis://localhost:6379
   jpa:
     hibernate:
       ddl-auto: {DDL_AUTO}

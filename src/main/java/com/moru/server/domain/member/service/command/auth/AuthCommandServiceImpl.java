@@ -3,6 +3,7 @@ package com.moru.server.domain.member.service.command.auth;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Optional;
@@ -20,18 +21,17 @@ import com.moru.server.domain.member.client.KakaoOAuthClient;
 import com.moru.server.domain.member.dto.AuthRequestDTO;
 import com.moru.server.domain.member.dto.AuthResponseDTO;
 import com.moru.server.domain.member.entity.Member;
-import com.moru.server.domain.member.entity.RefreshToken;
 import com.moru.server.domain.member.entity.enums.LoginType;
 import com.moru.server.domain.member.entity.enums.OAuthProvider;
 import com.moru.server.domain.member.entity.enums.Role;
 import com.moru.server.domain.member.repository.MemberRepository;
 import com.moru.server.domain.member.repository.MemberTermRepository;
-import com.moru.server.domain.member.repository.RefreshTokenRepository;
 import com.moru.server.domain.routine.repository.RoutineGroupRepository;
 import com.moru.server.domain.subscriptions.repository.SubscriptionsRepository;
 import com.moru.server.global.exception.BusinessException;
 import com.moru.server.global.response.code.status.ErrorStatus;
 import com.moru.server.global.security.jwt.JwtTokenProvider;
+import com.moru.server.global.security.jwt.RefreshTokenStore;
 
 @Service
 @RequiredArgsConstructor
@@ -45,7 +45,7 @@ public class AuthCommandServiceImpl implements AuthCommandService {
 
     private final MemberRepository memberRepository;
     private final MemberTermRepository memberTermRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
+    private final RefreshTokenStore refreshTokenStore;
     private final RoutineGroupRepository routineGroupRepository;
     private final SubscriptionsRepository subscriptionsRepository;
     private final KakaoOAuthClient kakaoOAuthClient;
@@ -85,11 +85,19 @@ public class AuthCommandServiceImpl implements AuthCommandService {
         Long memberId = jwtTokenProvider.getMemberIdFromRefreshToken(refreshToken);
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
-        RefreshToken storedRefreshToken = findStoredRefreshToken(memberId, refreshToken);
+        String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole());
+        String nextRefreshToken = jwtTokenProvider.createRefreshToken(member.getId(), member.getRole());
 
-        validateStoredRefreshToken(storedRefreshToken);
+        if (!refreshTokenStore.rotate(
+                memberId,
+                hashRefreshToken(refreshToken),
+                hashRefreshToken(nextRefreshToken),
+                getRefreshTokenTtl(nextRefreshToken)
+        )) {
+            throw new BusinessException(ErrorStatus.REFRESH_TOKEN_NOT_FOUND);
+        }
 
-        return issueTokenResponse(member);
+        return createTokenResponse(member, accessToken, nextRefreshToken);
     }
 
     @Override
@@ -101,10 +109,9 @@ public class AuthCommandServiceImpl implements AuthCommandService {
         jwtTokenProvider.validateRefreshToken(refreshToken);
         validateRefreshTokenOwner(memberId, refreshToken);
 
-        RefreshToken storedRefreshToken = findStoredRefreshToken(memberId, refreshToken);
-
-        validateStoredRefreshToken(storedRefreshToken);
-        storedRefreshToken.revoke(LocalDateTime.now());
+        if (!refreshTokenStore.deleteIfMatches(memberId, hashRefreshToken(refreshToken))) {
+            throw new BusinessException(ErrorStatus.REFRESH_TOKEN_NOT_FOUND);
+        }
     }
 
     private AuthResponseDTO.SocialLoginResponse loginWithKakao(AuthRequestDTO.SocialLoginRequest request) {
@@ -176,8 +183,16 @@ public class AuthCommandServiceImpl implements AuthCommandService {
         String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole());
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getId(), member.getRole());
 
-        saveRefreshToken(member, refreshToken);
+        saveRefreshToken(member.getId(), refreshToken);
 
+        return createTokenResponse(member, accessToken, refreshToken);
+    }
+
+    private AuthResponseDTO.TokenResponse createTokenResponse(
+            Member member,
+            String accessToken,
+            String refreshToken
+    ) {
         return AuthResponseDTO.TokenResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
@@ -195,6 +210,8 @@ public class AuthCommandServiceImpl implements AuthCommandService {
 
         deleteMemberRelatedData(memberId);
         memberRepository.delete(member);
+        memberRepository.flush();
+        refreshTokenStore.deleteByMemberId(memberId);
 
         return AuthResponseDTO.WithdrawalResponse.builder()
                 .message(WITHDRAWAL_COMPLETE_MESSAGE)
@@ -202,7 +219,6 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     }
 
     private void deleteMemberRelatedData(Long memberId) {
-        refreshTokenRepository.deleteAllByMember_Id(memberId);
         routineGroupRepository.deleteAll(routineGroupRepository.findAllByMember_Id(memberId));
         subscriptionsRepository.deleteAllByMember_Id(memberId);
         memberTermRepository.deleteAllByMember_Id(memberId);
@@ -212,7 +228,7 @@ public class AuthCommandServiceImpl implements AuthCommandService {
         String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole());
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getId(), member.getRole());
 
-        saveRefreshToken(member, refreshToken);
+        saveRefreshToken(member.getId(), refreshToken);
 
         return AuthResponseDTO.SocialLoginResponse.builder()
                 .memberId(member.getId())
@@ -241,37 +257,12 @@ public class AuthCommandServiceImpl implements AuthCommandService {
                 .build();
     }
 
-    private void saveRefreshToken(Member member, String refreshToken) {
-        LocalDateTime now = LocalDateTime.now();
-
-        refreshTokenRepository.findAllByMember_IdAndRevokedAtIsNull(member.getId())
-                .forEach(token -> {
-                    token.revoke(now);
-                    refreshTokenRepository.save(token);
-                });
-
-        refreshTokenRepository.save(RefreshToken.builder()
-                .member(member)
-                .tokenHash(hashRefreshToken(refreshToken))
-                .expiresAt(jwtTokenProvider.getRefreshTokenExpiresAt(refreshToken))
-                .build());
+    private void saveRefreshToken(Long memberId, String refreshToken) {
+        refreshTokenStore.save(memberId, hashRefreshToken(refreshToken), getRefreshTokenTtl(refreshToken));
     }
 
-    private RefreshToken findStoredRefreshToken(Long memberId, String refreshToken) {
-        return refreshTokenRepository.findByMemberIdAndTokenHashForUpdate(memberId, hashRefreshToken(refreshToken))
-                .orElseThrow(() -> new BusinessException(ErrorStatus.REFRESH_TOKEN_NOT_FOUND));
-    }
-
-    private void validateStoredRefreshToken(RefreshToken refreshToken) {
-        LocalDateTime now = LocalDateTime.now();
-
-        if (refreshToken.isRevoked()) {
-            throw new BusinessException(ErrorStatus.REFRESH_TOKEN_NOT_FOUND);
-        }
-
-        if (refreshToken.isExpired(now)) {
-            throw new BusinessException(ErrorStatus.REFRESH_TOKEN_EXPIRED);
-        }
+    private Duration getRefreshTokenTtl(String refreshToken) {
+        return Duration.between(LocalDateTime.now(), jwtTokenProvider.getRefreshTokenExpiresAt(refreshToken));
     }
 
     private void validateRefreshTokenOwner(Long memberId, String refreshToken) {
