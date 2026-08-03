@@ -10,6 +10,7 @@ import com.moru.server.domain.routine.event.RoutineTtsCreatedEvent;
 import com.moru.server.domain.routine.service.command.AI.RoutineStepGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,14 +37,11 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
     private final RoutineStepGenerator routineStepGenerator;
     private final ApplicationEventPublisher eventPublisher;
 
-    /**
-     * 메서드 전체에 @Transactional 을 붙이면 Gemini 호출(buildStepContents)까지 트랜잭션 안으로
-     * 들어와 DB 커넥션을 외부 호출 시간만큼 물고 있게 된다.
-     * 그래서 "저장 + 이벤트 발행" 구간만 이 템플릿으로 감싼다.
-     */
     private final TransactionTemplate transactionTemplate;
 
-    // 루틴 그룹 생성
+    @Value("${google.tts.enabled:true}")
+    private boolean ttsEnabled;
+
     @Override
     public RoutineGroupResponseDTO.DetailResponse createRoutineGroup(
             Long memberId,
@@ -59,7 +57,6 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
 
         List<List<String>> stepContents = buildStepContents(request.routines());
 
-        // 저장 + 이벤트 발행만 트랜잭션 안. Gemini 호출(위 buildStepContents)은 밖에 남는다.
         RoutineGroup savedRoutineGroup = transactionTemplate.execute(status -> {
             RoutineGroup routineGroup = RoutineGroup.builder()
                     .title(request.title())
@@ -163,6 +160,11 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             throw new IllegalStateException(
                     "TTS 이벤트는 트랜잭션 안에서 발행해야 한다. routineTtsId=" + tts.getId());
         }
+        if (!ttsEnabled) {
+            log.info("[TTS] 기능이 비활성화되어 FAILED 로 종결. routineTtsId={}", tts.getId());
+            tts.markFailed();
+            return;
+        }
         eventPublisher.publishEvent(new RoutineTtsCreatedEvent(tts.getId()));
     }
 
@@ -202,7 +204,6 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         return RoutineGroupConverter.toActiveResponse(routineGroup);
     }
 
-    //루틴 항목 추가
     @Override
     public RoutineGroupResponseDTO.RoutineResponse addRoutine(
             Long memberId,
@@ -213,7 +214,6 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
                 .filter(rg -> rg.isOwnedBy(memberId))
                 .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
 
-        // step 텍스트 생성 (외부 호출, 트랜잭션 밖)
         List<String> stepContents = buildSingleStepContents(request);
 
         Routine savedRoutine = transactionTemplate.execute(status -> {
@@ -235,7 +235,6 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
 
             Routine saved = routineRepository.save(routine);
 
-            // createRoutineGroup 과 동일.
             for (RoutineTTS tts : saved.getTtsList()) {
                 publishTtsEvent(tts);
             }

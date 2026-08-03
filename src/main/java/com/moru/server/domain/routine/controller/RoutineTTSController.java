@@ -23,7 +23,7 @@ public class RoutineTTSController {
 
     @Operation(summary = "루틴 TTS 조회", description = "루틴 실행에 필요한 TTS을 조회합니다")
     @GetMapping("/{routineGroupId}/tts")
-    public ApiResponse<List<RoutineTTSResponseDTO.RoutineTTSRes>> getMonthlyExecutions(
+    public ApiResponse<List<RoutineTTSResponseDTO.RoutineTTSRes>> getRoutineTTS(
             @AuthenticationPrincipal AuthenticatedMember member,
             @PathVariable Long routineGroupId
     ){
