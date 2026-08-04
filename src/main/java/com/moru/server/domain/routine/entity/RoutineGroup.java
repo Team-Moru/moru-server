@@ -104,6 +104,7 @@ public class RoutineGroup extends BaseEntity {
         return Arrays.stream(alarmDays.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
+                .map(s -> s.toUpperCase(Locale.ROOT))
                 .collect(Collectors.toSet());
     }
 
