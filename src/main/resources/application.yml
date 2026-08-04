@@ -9,6 +9,9 @@ spring:
       read-timeout: 5s
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:prod}
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
 
 server:
   port: ${SERVER_PORT:8080}
