@@ -423,3 +423,6 @@ gradle-app.setting
 
 src/main/resources/application-dev.yml
 application-prod.yml
+
+# GCP Service Account Key
+src/main/resources/gcp-key.json

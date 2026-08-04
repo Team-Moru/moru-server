@@ -1,6 +1,7 @@
 package com.moru.server.domain.routine.service.command.AI;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moru.server.domain.routine.entity.RoutineTTS;
 import com.moru.server.global.config.GeminiRoutineProperties;
 import com.moru.server.global.exception.BusinessException;
 import com.moru.server.global.response.code.status.ErrorStatus;
@@ -21,6 +22,8 @@ public class GeminiRoutineStepGenerator implements RoutineStepGenerator {
 
     private static final String BASE_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/";
+
+    private static final int MAX_STEPS_PER_ROUTINE = 5;
 
     private final GeminiRoutineProperties properties;
     private final RestClient restClient;
@@ -97,7 +100,11 @@ public class GeminiRoutineStepGenerator implements RoutineStepGenerator {
                                                 "index", Map.of("type", "INTEGER"),
                                                 "steps", Map.of(
                                                         "type", "ARRAY",
-                                                        "items", Map.of("type", "STRING")
+                                                        "maxItems", MAX_STEPS_PER_ROUTINE,
+                                                        "items", Map.of(
+                                                                "type", "STRING",
+                                                                "maxLength", RoutineTTS.CONTENT_MAX_LENGTH
+                                                        )
                                                 )
                                         ),
                                         "required", List.of("index", "steps")
@@ -155,13 +162,7 @@ public class GeminiRoutineStepGenerator implements RoutineStepGenerator {
                 Object idxObj = item.get("index");
                 Object stepsObj = item.get("steps");
                 if (idxObj instanceof Number idx && stepsObj instanceof List<?> steps) {
-                    List<String> stepStrings = new ArrayList<>();
-                    for (Object s : steps) {
-                        if (s != null) {
-                            stepStrings.add(String.valueOf(s));
-                        }
-                    }
-                    byIndex.put(idx.intValue(), stepStrings);
+                    byIndex.put(idx.intValue(), normalizeSteps(steps, idx.intValue()));
                 }
             }
         }
@@ -171,6 +172,35 @@ public class GeminiRoutineStepGenerator implements RoutineStepGenerator {
             ordered.add(byIndex.getOrDefault(i, List.of()));
         }
         return ordered;
+    }
+
+    private List<String> normalizeSteps(List<?> rawSteps, int routineIndex) {
+        List<String> normalized = new ArrayList<>();
+
+        for (Object raw : rawSteps) {
+            if (normalized.size() >= MAX_STEPS_PER_ROUTINE) {
+                log.warn("AI step 개수 초과 - {}개까지만 사용합니다. routineIndex={}, 응답개수={}",
+                        MAX_STEPS_PER_ROUTINE, routineIndex, rawSteps.size());
+                break;
+            }
+            if (raw == null) {
+                continue;
+            }
+
+            String step = String.valueOf(raw).trim();
+            if (step.isBlank()) {
+                continue;
+            }
+            if (step.length() > RoutineTTS.CONTENT_MAX_LENGTH) {
+                log.warn("AI step 길이 초과 - {}자로 자릅니다. routineIndex={}, 원본길이={}",
+                        RoutineTTS.CONTENT_MAX_LENGTH, routineIndex, step.length());
+                step = step.substring(0, RoutineTTS.CONTENT_MAX_LENGTH);
+            }
+
+            normalized.add(step);
+        }
+
+        return normalized;
     }
 
     private BusinessException stepGenerationFailed(String detail) {

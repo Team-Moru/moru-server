@@ -3,6 +3,10 @@ spring:
     import: optional:file:.env[.properties]
   application:
     name: moru-server
+  jpa:
+    properties:
+      hibernate:
+        default_batch_fetch_size: 100
   http:
     clients:
       connect-timeout: 3s
