@@ -40,9 +40,10 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             throw new BusinessException(ErrorStatus.ROUTINE_EMPTY);
         }
 
-        Member member = memberRepository.findById(memberId)
+        Member member = memberRepository.findByIdForUpdate(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
 
+        validateNoAlarmDayConflict(memberId, request.alarmDays(), null);
 
         List<List<String>> stepContents = buildStepContents(request.routines());
 
@@ -161,6 +162,12 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             throw new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND);
         }
 
+        if (Boolean.TRUE.equals(request.isActive())) {
+            memberRepository.findByIdForUpdate(memberId)
+                    .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
+            validateNoAlarmDayConflict(memberId, routineGroup.getAlarmDays(), routineGroupId);
+        }
+
         routineGroup.updateActive(request.isActive());
 
         return RoutineGroupConverter.toActiveResponse(routineGroup);
@@ -198,6 +205,18 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         return RoutineGroupConverter.toRoutineResponse(savedRoutine);
     }
 
+    private void validateNoAlarmDayConflict(Long memberId, String alarmDays, Long excludeRoutineGroupId) {
+        List<RoutineGroup> activeGroups = routineGroupRepository.findByMember_IdAndIsActiveTrue(memberId);
+        for (RoutineGroup group : activeGroups) {
+            if (excludeRoutineGroupId != null && group.getId().equals(excludeRoutineGroupId)) {
+                continue;
+            }
+            if (group.hasOverlappingAlarmDays(alarmDays)) {
+                throw new BusinessException(ErrorStatus.ROUTINE_ALARM_DAYS_CONFLICT);
+            }
+        }
+    }
+  
     private List<String> buildSingleStepContents(RoutineGroupRequestDTO.RoutineRequest request) {
         if (request.type() != RoutineType.TIMER) {
             return List.of(request.title());
