@@ -1,6 +1,7 @@
 package com.moru.server.domain.routine.service.query.RoutineExecution;
 
 import com.moru.server.domain.member.repository.MemberRepository;
+import com.moru.server.domain.member.service.query.member.MemberQueryService;
 import com.moru.server.domain.routine.converter.RoutineExecutionConverter;
 import com.moru.server.domain.routine.dto.RoutineExecutionResponseDTO;
 import com.moru.server.domain.routine.entity.RoutineExecution;
@@ -11,13 +12,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.time.YearMonth;
-import java.time.ZoneId;
+import java.time.*;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import static com.moru.server.domain.routine.converter.RoutineExecutionConverter.toDailyResponse;
 
 @Service
 @RequiredArgsConstructor
@@ -28,7 +28,7 @@ public class RoutineExecutionQueryServiceImpl implements RoutineExecutionQuerySe
 
     private final RoutineExecutionRepository routineExecutionRepository;
     private final MemberRepository memberRepository;
-
+    private final MemberQueryService memberQueryService;
     @Override
     public List<RoutineExecutionResponseDTO.DailyExecution> getMonthlyExecutions(Long memberId, int year, int month) {
         YearMonth yearMonth = YearMonth.of(year, month);
@@ -41,7 +41,8 @@ public class RoutineExecutionQueryServiceImpl implements RoutineExecutionQuerySe
         Map<LocalDate, List<RoutineExecution>> executionsByDate = executions.stream()
                 .collect(Collectors.groupingBy(RoutineExecution::getExecutedDate));
 
-        return RoutineExecutionConverter.toMonthlyResponse(yearMonth, executionsByDate);
+        LocalDate today = LocalDate.now(SERVICE_ZONE);
+        return RoutineExecutionConverter.toMonthlyResponse(yearMonth, executionsByDate, today);
     }
 
     @Override
@@ -62,5 +63,32 @@ public class RoutineExecutionQueryServiceImpl implements RoutineExecutionQuerySe
                 .findAllByMemberIdAndExecutedDateBetween(memberId, lastMonday, lastSunday);
 
         return RoutineExecutionConverter.toWeeklyReportResponse(thisWeekExecutions, lastWeekExecutions, monday, today);
+    }
+
+    @Override
+    public RoutineExecutionResponseDTO.WakePatternResponse getWakePattern(Long memberId) {
+        if (!routineExecutionRepository.existsByMemberId(memberId)) {
+            return null;
+        }
+
+        LocalDate today = LocalDate.now(SERVICE_ZONE);
+        LocalDate thisWeekStart = today.minusDays(6);
+        LocalDate lastWeekStart = today.minusDays(13);
+        LocalDate lastWeekEnd = today.minusDays(7);
+        List<RoutineExecution> thisWeekExecutions = routineExecutionRepository
+                .findAllByMemberIdAndExecutedDateBetweenAndActualWakeTimeIsNotNull(memberId, thisWeekStart, today);
+        List<RoutineExecution> lastWeekExecutions = routineExecutionRepository
+                .findAllByMemberIdAndExecutedDateBetweenAndActualWakeTimeIsNotNull(memberId, lastWeekStart, lastWeekEnd);
+        return RoutineExecutionConverter.toWakePatternResponse(thisWeekExecutions, lastWeekExecutions);
+    }
+  
+      @Override 
+      public RoutineExecutionResponseDTO.DailyResponse getDailyResponse(Long memberId, LocalDate executedDate) {
+        if (!memberRepository.existsById(memberId)) {
+            throw new BusinessException(ErrorStatus.MEMBER_NOT_FOUND);
+        }
+        List<RoutineExecution> list =routineExecutionRepository.findAllWithRoutineByMemberIdAndExecutedDateBetween(memberId,executedDate,executedDate);
+        Long currentStreak = memberQueryService.getStreak(memberId, executedDate).currentStreak();
+        return toDailyResponse(executedDate,currentStreak,list);
     }
 }

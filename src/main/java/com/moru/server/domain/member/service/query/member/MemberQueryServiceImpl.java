@@ -38,6 +38,11 @@ public class MemberQueryServiceImpl implements MemberQueryService {
 
     @Override
     public MemberResponseDTO.StreakResponse getStreak(Long memberId) {
+        return getStreak(memberId, LocalDate.now(SERVICE_ZONE));
+    }
+
+    @Override
+    public MemberResponseDTO.StreakResponse getStreak(Long memberId, LocalDate baseDate) {
         if (!memberRepository.existsById(memberId)) {
             throw new BusinessException(ErrorStatus.MEMBER_NOT_FOUND);
         }
@@ -46,10 +51,9 @@ public class MemberQueryServiceImpl implements MemberQueryService {
                 routineExecutionRepository.findCompletedDatesByMemberId(memberId)
         );
 
-        LocalDate today = LocalDate.now(SERVICE_ZONE);
-        Long currentStreak = calculateCurrentStreak(completedDates, today);
+        Long currentStreak = calculateCurrentStreak(completedDates, baseDate);
         Long maxStreak = calculateMaxStreak(completedDates);
-        List<Boolean> weeklyStatus = calculateWeeklyStatus(completedDates, today);
+        List<Boolean> weeklyStatus = calculateWeeklyStatus(completedDates, baseDate);
 
         return MemberConverter.toStreakResponse(currentStreak, maxStreak, weeklyStatus);
     }

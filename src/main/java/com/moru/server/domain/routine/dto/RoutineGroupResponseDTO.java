@@ -48,7 +48,24 @@ public record RoutineGroupResponseDTO() {
             RoutineType type,
 
             @Schema(description = "소요 시간(초)")
-            Integer durationSecond
+            Integer durationSecond,
+
+            @Schema(description = "AI가 생성한 세부 단계 목록 (orderIndex 오름차순)")
+            List<RoutineStepResponse> steps
+    ) {
+    }
+
+    @Builder
+    @Schema(description = "루틴 세부 단계")
+    public record RoutineStepResponse(
+            @Schema(description = "스텝 ID", example = "101")
+            Long stepId,
+
+            @Schema(description = "스텝 내용", example = "목 스트레칭")
+            String content,
+
+            @Schema(description = "정렬 순서(0부터)", example = "0")
+            Integer orderIndex
     ) {
     }
 

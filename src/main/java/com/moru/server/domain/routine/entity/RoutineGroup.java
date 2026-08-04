@@ -1,14 +1,15 @@
 package com.moru.server.domain.routine.entity;
 
 import com.moru.server.domain.member.entity.Member;
+import com.moru.server.domain.routine.entity.enums.RoutineGoalType;
 import com.moru.server.domain.routine.entity.enums.RoutineType;
 import com.moru.server.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Entity
 @Builder
@@ -43,7 +44,7 @@ public class RoutineGroup extends BaseEntity {
     private Boolean weatherNotificationEnabled = true;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", nullable = false)
+    @JoinColumn(name = "member_id", nullable = true)
     private Member member;
 
     @OneToMany(mappedBy = "routineGroup", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -66,9 +67,9 @@ public class RoutineGroup extends BaseEntity {
     }
 
     public boolean isOwnedBy(Long memberId) {
-        return this.member.getId().equals(memberId);
+        return this.member != null && this.member.getId().equals(memberId);
     }
-  
+
     public int getTotalDurationSecond() {
         return routines.stream()
                 .mapToInt(routine -> routine.getTimer() == null ? 0 : routine.getTimer())
@@ -92,6 +93,22 @@ public class RoutineGroup extends BaseEntity {
         this.isActive = isActive;
     }
 
+    public boolean hasOverlappingAlarmDays(String otherAlarmDays) {
+        return !Collections.disjoint(parseAlarmDays(this.alarmDays), parseAlarmDays(otherAlarmDays));
+    }
+
+    private static Set<String> parseAlarmDays(String alarmDays) {
+        if (alarmDays == null || alarmDays.isBlank()) {
+            return Collections.emptySet();
+        }
+        return Arrays.stream(alarmDays.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(s -> s.toUpperCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+    }
+
+
     public Routine addRoutine(String title, RoutineType type, Integer timer, Integer orderIndex) {
         Routine routine = Routine.builder()
                 .title(title)
@@ -103,5 +120,8 @@ public class RoutineGroup extends BaseEntity {
         this.routines.add(routine);
         return routine;
     }
-    
+
+    @Enumerated(EnumType.STRING)
+    private RoutineGoalType goalType; // 추천 템플릿일 때만 값 있음
+    private boolean isTemplate; // true = 추천용 템플릿
 }

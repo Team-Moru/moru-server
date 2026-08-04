@@ -1,10 +1,12 @@
 package com.moru.server.domain.routine.dto;
 
 
+import com.moru.server.domain.routine.entity.enums.RoutineType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 public record RoutineExecutionResponseDTO() {
@@ -86,6 +88,26 @@ public record RoutineExecutionResponseDTO() {
     ){}
 
     @Builder
+    @Schema(description = "기상 패턴 분석 응답")
+    public record WakePatternResponse(
+
+            @Schema(description = "최근 7일 평균 기상 시각 (HH:mm). 데이터 없으면 null", example = "07:08", nullable = true)
+            String avgWakeTime,
+
+            @Schema(description = "지난주 평균 대비 기상 시각 차이(분). 음수=일찍, 양수=늦게. 지난주 데이터 없으면 null", example = "-12", nullable = true)
+            Integer wakeTimeDiffMin,
+
+            @Schema(description = "기상 규칙성 점수 (0~100). 유효 데이터 3일 미만이면 null", example = "73", nullable = true)
+            Integer regularityScore,
+
+            @Schema(description = "최근 7일 기상 시각 표준편차(분). 유효 데이터 3일 미만이면 null", example = "18", nullable = true)
+            Integer stdDevMin,
+
+            @Schema(description = "규칙성 점수 기반 안내 문구", example = "꽤 규칙적이에요")
+            String regularityLabel
+    ){}
+
+    @Builder
     @Schema(description ="루틴 AI 확인 결과 응답")
     public record AiResponseRes(
             @Schema(description = "AI 응답 상세 내역", example = "다음으로 넘어갈게요 !")
@@ -95,4 +117,45 @@ public record RoutineExecutionResponseDTO() {
             Boolean shouldProceed
     ) {}
 
+
+    @Builder
+    @Schema(description ="루틴 실행 이후 오늘 루틴 완료 페이지  및 오늘의 기록 확인 조회 데이터")
+    public record DailyResponse(
+            @Schema(description = "실행 날짜", example = "2026-07-13")
+            LocalDate executedDate,
+            @Schema(description = "항목 완료율(%)", example = "60")
+            Integer completionRate,
+            @Schema(description = "총 소요시간(초)", example = "3600")
+            Integer totalDurationSecond,
+
+
+            @Schema(description = "실제 기상 시간", example = "09:00")
+            LocalTime actualWakeTime,
+
+            @Schema(description = "스트릭", example = "7")
+            Long currentStreak,
+
+            @Schema(description = "당일 루틴 실행 결과 목록", example = "7")
+            List<RoutineResult> routines
+    ){}
+
+    @Builder
+    public record RoutineResult(
+            @Schema(description = "루틴 ID", example = "1")
+            Long routineId,
+
+
+            @Schema(description = "루틴명", example = "물 마시기")
+            String title,
+
+            @Schema(description = "루틴 타입", example = "CHECK")
+            RoutineType type,
+            @Schema(description = "실행 소요 시간(초)", example = "20")
+            Integer durationSecond,
+            @Schema(description = "완료 여부", example = "true")
+            Boolean isCompleted,
+
+            @Schema(description = "사용자 입력", example = "응, 다음")
+            String memberInput
+    ){}
 }

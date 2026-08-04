@@ -14,15 +14,12 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 
@@ -70,6 +67,14 @@ public class RoutineExecutionController {
         return ApiResponse.onSuccess(routineExecutionQueryService.getWeeklyReport(member.memberId()));
     }
 
+    @Operation(summary = "기상 패턴 분석 조회", description = "최근 7일 평균 기상 시각, 지난주 대비 증감, 기상 규칙성 점수를 조회합니다. 실행 기록이 없으면 result가 null입니다.")
+    @GetMapping("/wake-pattern")
+    public ApiResponse<RoutineExecutionResponseDTO.WakePatternResponse> getWakePattern(
+            @AuthenticationPrincipal AuthenticatedMember member
+    ){
+        return ApiResponse.onSuccess(routineExecutionQueryService.getWakePattern(member.memberId()));
+    }
+
     @Operation(summary = "루틴 실행 AI 응답 확인", description = "사용자의 응답을 AI가 판단하고 저장합니다.")
     @PostMapping("/ai-step")
     public ApiResponse<RoutineExecutionResponseDTO.AiResponseRes> judgeRoutineExecution(
@@ -77,6 +82,15 @@ public class RoutineExecutionController {
             @Valid @RequestBody RoutineExecutionRequestDTO.AiResponseReq req
     ){
         return ApiResponse.onSuccess(routineExecutionCommandService.judgeUserResponse(member.memberId(),req));
+    }
+
+    @Operation(summary = "오늘 루틴 완료 조회", description = "특정 날짜의 루틴 실행 결과(완수율, 스트릭, 총 소요시간, 실제 기상시간, 루틴별 상세)를 조회합니다.")
+    @GetMapping("/daily/{date}")
+    public ApiResponse<RoutineExecutionResponseDTO.DailyResponse> getDailyReport(
+            @AuthenticationPrincipal AuthenticatedMember member,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ){
+        return ApiResponse.onSuccess(routineExecutionQueryService.getDailyResponse(member.memberId(), date));
     }
 
 }

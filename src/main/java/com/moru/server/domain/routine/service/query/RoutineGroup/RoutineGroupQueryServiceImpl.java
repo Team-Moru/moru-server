@@ -11,6 +11,7 @@ import com.moru.server.domain.routine.converter.RoutineGroupConverter;
 import com.moru.server.domain.routine.dto.RoutineGroupResponseDTO;
 import com.moru.server.domain.routine.entity.RoutineExecution;
 import com.moru.server.domain.routine.entity.RoutineGroup;
+import com.moru.server.domain.routine.entity.enums.RoutineGoalType;
 import com.moru.server.domain.routine.repository.RoutineExecutionRepository;
 import com.moru.server.domain.routine.repository.RoutineGroupRepository;
 import com.moru.server.global.exception.BusinessException;
@@ -77,5 +78,14 @@ public class RoutineGroupQueryServiceImpl implements RoutineGroupQueryService {
                         (existing, replacement) -> existing));
 
         return RoutineGroupConverter.toActiveRoutineResponse(routineGroup, executionByRoutineId);
+    }
+
+    // 온보딩 목표별 추천 루틴 그룹 조회
+    @Override
+    public List<RoutineGroupResponseDTO.DetailResponse> getRecommendedRoutineGroups(RoutineGoalType goalType) {
+        List<RoutineGroup> routineGroups = routineGroupRepository.findTemplatesWithRoutinesByGoalType(goalType);
+        return routineGroups.stream()
+                .map(RoutineGroupConverter::toDetailResponse)
+                .toList();
     }
 }
