@@ -2,6 +2,7 @@ package com.moru.server.domain.routine.service.query.RoutineExecution;
 
 import com.moru.server.domain.routine.dto.RoutineExecutionResponseDTO;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface RoutineExecutionQueryService {
@@ -11,4 +12,5 @@ public interface RoutineExecutionQueryService {
     RoutineExecutionResponseDTO.WeeklyReportResponse getWeeklyReport(Long memberId);
 
     RoutineExecutionResponseDTO.WakePatternResponse getWakePattern(Long memberId);
+    RoutineExecutionResponseDTO.DailyResponse getDailyResponse(Long memberId, LocalDate executedDate);
 }

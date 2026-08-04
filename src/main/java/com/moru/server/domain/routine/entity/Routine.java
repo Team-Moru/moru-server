@@ -41,7 +41,21 @@ public class Routine extends BaseEntity {
     @Builder.Default
     private List<RoutineExecution> executions = new ArrayList<>();
 
+    @OneToMany(mappedBy = "routine", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("orderIndex ASC")
+    @Builder.Default
+    private List<RoutineTTS> ttsList = new ArrayList<>();
+
     public void updateOrder(Integer orderIndex) {
         this.orderIndex = orderIndex;
+    }
+
+    public void addStep(String content, int orderIndex) {
+        RoutineTTS step = RoutineTTS.builder()
+                .routine(this)
+                .content(content)
+                .orderIndex(orderIndex)
+                .build();
+        this.ttsList.add(step);
     }
 }

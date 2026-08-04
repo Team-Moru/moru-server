@@ -9,4 +9,10 @@ public record GeminiResponseDTO() {
             Boolean shouldProceed,
             String aiResponse
     ){}
+
+    @Builder
+    public record AiTtsResult(
+        String ttsIntro,
+        String ttsDone
+    ){}
 }

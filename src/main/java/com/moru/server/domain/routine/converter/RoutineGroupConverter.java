@@ -33,7 +33,18 @@ public class RoutineGroupConverter {
                 .title(routine.getTitle())
                 .type(routine.getType())
                 .durationSecond(routine.getTimer())
+                .steps(toStepResponses(routine))
                 .build();
+    }
+    
+    private static List<RoutineGroupResponseDTO.RoutineStepResponse> toStepResponses(Routine routine) {
+        return routine.getTtsList().stream()
+                .map(tts -> RoutineGroupResponseDTO.RoutineStepResponse.builder()
+                        .stepId(tts.getId())
+                        .content(tts.getContent())
+                        .orderIndex(tts.getOrderIndex())
+                        .build())
+                .toList();
     }
 
     public static RoutineGroupResponseDTO.DeleteResponse toDeleteResponse(Long routineGroupId) {

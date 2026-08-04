@@ -24,9 +24,14 @@ services:
       JWT_ACCESS_TOKEN_EXPIRATION: ${JWT_ACCESS_TOKEN_EXPIRATION:-1h}
       JWT_REFRESH_TOKEN_EXPIRATION: ${JWT_REFRESH_TOKEN_EXPIRATION:-14d}
       DEV_AUTH_SECRET: ${DEV_AUTH_SECRET:?DEV_AUTH_SECRET is required}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379
 
     ports:
       - "127.0.0.1:${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+
+    depends_on:
+      redis:
+        condition: service_healthy
 
     restart: unless-stopped
 
@@ -36,3 +41,22 @@ services:
       timeout: 5s
       retries: 3
       start_period: 40s
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: moru-redis
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    volumes:
+      - moru-redis-data:/data
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  moru-redis-data:
