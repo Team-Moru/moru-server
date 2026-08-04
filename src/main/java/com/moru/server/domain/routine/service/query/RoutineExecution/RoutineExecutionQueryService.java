@@ -11,5 +11,6 @@ public interface RoutineExecutionQueryService {
 
     RoutineExecutionResponseDTO.WeeklyReportResponse getWeeklyReport(Long memberId);
 
+    RoutineExecutionResponseDTO.WakePatternResponse getWakePattern(Long memberId);
     RoutineExecutionResponseDTO.DailyResponse getDailyResponse(Long memberId, LocalDate executedDate);
 }

@@ -57,4 +57,23 @@ public interface RoutineExecutionRepository extends JpaRepository<RoutineExecuti
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
     );
+
+    @Query("""
+        select count(re) > 0 from RoutineExecution re
+        where re.routine.routineGroup.member.id = :memberId
+    """)
+    boolean existsByMemberId(@Param("memberId") Long memberId);
+
+    @Query("""
+        select re from RoutineExecution re
+        where re.routine.routineGroup.member.id = :memberId
+        and re.executedDate between :startDate and :endDate
+        and re.actualWakeTime is not null
+        order by re.executedDate
+    """)
+    List<RoutineExecution> findAllByMemberIdAndExecutedDateBetweenAndActualWakeTimeIsNotNull(
+            @Param("memberId") Long memberId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
 }

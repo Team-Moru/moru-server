@@ -14,6 +14,8 @@ import java.util.stream.Collectors;
 
 public class RoutineExecutionConverter {
 
+    private static final int MINUTES_PER_DAY = 24 * 60;
+
     public static RoutineExecution toEntity(
             RoutineExecutionRequestDTO.RoutineExecutionResultReq req,
             Routine routine
@@ -221,6 +223,129 @@ public class RoutineExecutionConverter {
                 })
                 .sorted(Comparator.comparing(RoutineExecutionResponseDTO.RoutineStat::routineId))
                 .toList();
+    }
+
+    public static RoutineExecutionResponseDTO.WakePatternResponse toWakePatternResponse(
+            List<RoutineExecution> thisWeekExecutions,
+            List<RoutineExecution> lastWeekExecutions
+    ){
+        List<Integer> thisWeekWakeMinutes = toDailyWakeMinutes(thisWeekExecutions);
+        List<Integer> lastWeekWakeMinutes = toDailyWakeMinutes(lastWeekExecutions);
+
+        Double thisWeekAvg = circularMeanMinutes(thisWeekWakeMinutes);
+        Double lastWeekAvg = circularMeanMinutes(lastWeekWakeMinutes);
+
+        String avgWakeTime = thisWeekAvg != null ? toTimeString(thisWeekAvg) : null;
+
+        Integer wakeTimeDiffMin = (thisWeekAvg != null && lastWeekAvg != null)
+                ? circularDiffMinutes(lastWeekAvg, thisWeekAvg)
+                : null;
+
+        Integer regularityScore = null;
+        Integer stdDevMin = null;
+        if (thisWeekWakeMinutes.size() >= 3) {
+            double stdDev = circularStdDevMinutes(thisWeekWakeMinutes);
+            stdDevMin = (int) Math.round(Math.min(stdDev, MINUTES_PER_DAY / 2.0));
+            regularityScore = Math.max(0, (int) Math.round(100 * (1 - stdDev / 120)));
+        }
+
+        return RoutineExecutionResponseDTO.WakePatternResponse.builder()
+                .avgWakeTime(avgWakeTime)
+                .wakeTimeDiffMin(wakeTimeDiffMin)
+                .regularityScore(regularityScore)
+                .stdDevMin(stdDevMin)
+                .regularityLabel(toRegularityLabel(regularityScore))
+                .build();
+    }
+
+    private static List<Integer> toDailyWakeMinutes(List<RoutineExecution> executions) {
+        Map<LocalDate, RoutineExecution> latestByDate = executions.stream()
+                .collect(Collectors.toMap(
+                        RoutineExecution::getExecutedDate,
+                        execution -> execution,
+                        (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b
+                ));
+
+        return latestByDate.values().stream()
+                .map(execution -> toMinutesOfDay(execution.getActualWakeTime()))
+                .toList();
+    }
+
+    private static int toMinutesOfDay(LocalTime time) {
+        return time.getHour() * 60 + time.getMinute();
+    }
+
+    /**
+     * 자정을 넘나드는 기상 시각(예: 23:55, 00:05)을 하나의 원형 분포로 보고
+     * 단위원 위 각도의 평균(벡터 평균)으로 대표 시각을 구한다. 단순 산술 평균을 쓰면
+     * 23:55/00:05가 정오 근처(1435분, 5분의 평균인 720분)로 계산되는 오류가 생긴다.
+     */
+    private static Double circularMeanMinutes(List<Integer> minutes) {
+        if (minutes.isEmpty()) {
+            return null;
+        }
+
+        double sumSin = 0;
+        double sumCos = 0;
+        for (int minute : minutes) {
+            double angle = 2 * Math.PI * minute / MINUTES_PER_DAY;
+            sumSin += Math.sin(angle);
+            sumCos += Math.cos(angle);
+        }
+
+        double meanAngle = Math.atan2(sumSin / minutes.size(), sumCos / minutes.size());
+        double meanMinutes = meanAngle / (2 * Math.PI) * MINUTES_PER_DAY;
+        return meanMinutes < 0 ? meanMinutes + MINUTES_PER_DAY : meanMinutes;
+    }
+
+    /** 원형 표준편차(Mardia). 자정 경계에서도 흩어진 정도가 연속적으로 계산된다. */
+    private static double circularStdDevMinutes(List<Integer> minutes) {
+        double sumSin = 0;
+        double sumCos = 0;
+        for (int minute : minutes) {
+            double angle = 2 * Math.PI * minute / MINUTES_PER_DAY;
+            sumSin += Math.sin(angle);
+            sumCos += Math.cos(angle);
+        }
+
+        double meanSin = sumSin / minutes.size();
+        double meanCos = sumCos / minutes.size();
+        double resultantLength = Math.min(1.0, Math.max(1e-6, Math.sqrt(meanSin * meanSin + meanCos * meanCos)));
+
+        double stdDevRadians = Math.sqrt(-2 * Math.log(resultantLength));
+        return stdDevRadians / (2 * Math.PI) * MINUTES_PER_DAY;
+    }
+
+    /** to - from을 자정 넘어가는 최단 경로 기준으로 구한다. 예: 23:50 -> 00:10 = +20분 */
+    private static int circularDiffMinutes(double from, double to) {
+        double diff = ((to - from) % MINUTES_PER_DAY + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+        if (diff > MINUTES_PER_DAY / 2.0) {
+            diff -= MINUTES_PER_DAY;
+        }
+        return (int) Math.round(diff);
+    }
+
+    private static String toTimeString(double avgMinutes) {
+        int totalMinutes = (int) Math.round(avgMinutes) % MINUTES_PER_DAY;
+        int hour = totalMinutes / 60;
+        int minute = totalMinutes % 60;
+        return String.format("%02d:%02d", hour, minute);
+    }
+
+    private static String toRegularityLabel(Integer score) {
+        if (score == null) {
+            return "측정 중";
+        }
+        if (score >= 90) {
+            return "매우 규칙적이에요";
+        }
+        if (score >= 70) {
+            return "꽤 규칙적이에요";
+        }
+        if (score >= 50) {
+            return "보통이에요";
+        }
+        return "불규칙해요";
     }
 
     private static int calculateRate(List<RoutineExecution> executions) {
