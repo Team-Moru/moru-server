@@ -79,7 +79,7 @@ jobs:
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
             DOCKER_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest" docker compose -f docker-compose.prod.yml pull
             if ! DOCKER_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest" docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 180; then
-              DOCKER_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest" docker compose -f docker-compose.prod.yml ps
+              DOCKER_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest" docker compose -f docker-compose.prod.yml ps --all
               docker logs --tail 200 moru-server
               exit 1
             fi
