@@ -1,7 +1,10 @@
 package com.moru.server.domain.routine.service.command.RoutineGroup;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moru.server.domain.routine.converter.RoutineGroupConverter;
 import com.moru.server.domain.routine.entity.RoutineTTS;
 import com.moru.server.domain.routine.entity.enums.RoutineType;
@@ -10,8 +13,10 @@ import com.moru.server.domain.routine.event.RoutineTtsCreatedEvent;
 import com.moru.server.domain.routine.service.command.AI.RoutineStepGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -38,15 +43,23 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
     private final ApplicationEventPublisher eventPublisher;
 
     private final TransactionTemplate transactionTemplate;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
 
     @Value("${google.tts.enabled:true}")
     private boolean ttsEnabled;
+
+    private static final Duration DEDUP_TTL = Duration.ofSeconds(5);
+    private static final String DEDUP_KEY_PREFIX = "moru:dedup:";
 
     @Override
     public RoutineGroupResponseDTO.DetailResponse createRoutineGroup(
             Long memberId,
             RoutineGroupRequestDTO.CreateRequest request
     ) {
+        checkDuplicateRequest("create-routine-group", memberId, request);
+
         if (request.routines() == null || request.routines().isEmpty()) {
             throw new BusinessException(ErrorStatus.ROUTINE_EMPTY);
         }
@@ -155,6 +168,22 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         }
     }
 
+    private void checkDuplicateRequest(String action, Long memberId, Object request) {
+        try {
+            String requestJson = objectMapper.writeValueAsString(request);
+            String requestHash = DigestUtils.sha256Hex(requestJson);
+            String dedupKey = DEDUP_KEY_PREFIX + action + ":" + memberId + ":" + requestHash;
+
+            Boolean isFirstRequest = redisTemplate.opsForValue()
+                    .setIfAbsent(dedupKey, "processing", DEDUP_TTL);
+
+            if (Boolean.FALSE.equals(isFirstRequest)) {
+                throw new BusinessException(ErrorStatus.DUPLICATE_REQUEST);
+            }
+        } catch (JsonProcessingException e) {
+            log.warn("dedup 체크용 직렬화 실패, 검증 스킵. action={}", action, e);
+        }
+    }
 
     private void publishTtsEvent(RoutineTTS tts) {
         if (!TransactionSynchronizationManager.isActualTransactionActive()) {
@@ -217,6 +246,8 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             Long routineGroupId,
             RoutineGroupRequestDTO.RoutineRequest request
     ) {
+        checkDuplicateRequest("add-routine:" + routineGroupId, memberId, request);
+
         RoutineGroup routineGroup = routineGroupRepository.findById(routineGroupId)
                 .filter(rg -> rg.isOwnedBy(memberId))
                 .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
