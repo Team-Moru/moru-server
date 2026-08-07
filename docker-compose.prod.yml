@@ -27,7 +27,7 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379
 
       GOOGLE_TTS_ENABLED: ${GOOGLE_TTS_ENABLED:-false}
-      GOOGLE_TTS_CREDENTIALS_PATH: /run/secrets/gcp-key.json
+      GOOGLE_TTS_CREDENTIALS_PATH: file:/run/secrets/gcp-key.json
 
     volumes:
       - ./secrets/gcp-key.json:/run/secrets/gcp-key.json:ro
