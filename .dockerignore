@@ -7,6 +7,7 @@ out
 .env
 .env.*
 !.env.example
+secrets/
 
 src/main/resources/application-secret.yml
 src/main/resources/application-dev.yml
@@ -18,3 +19,5 @@ src/main/resources/application-prod.yml
 
 Dockerfile
 docker-compose*.yml
+
+src/main/resources/gcp-key.json

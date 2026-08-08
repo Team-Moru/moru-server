@@ -39,7 +39,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
 
     private final TransactionTemplate transactionTemplate;
 
-    @Value("${google.tts.enabled:true}")
+    @Value("${google.tts.enabled:false}")
     private boolean ttsEnabled;
 
     @Override

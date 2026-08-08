@@ -11,6 +11,7 @@ out/
 .env
 .env.*
 !.env.example
+secrets/
 
 src/main/resources/application-secret.yml
 src/main/resources/application-dev.yml

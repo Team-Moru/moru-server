@@ -17,16 +17,3 @@ jwt:
   secret: moru-test-jwt-secret-key-must-be-at-least-32-bytes
   access-token-expiration: 1h
   refresh-token-expiration: 14d
-
-google:
-  tts:
-    enabled: false
-
-aws:
-  s3:
-    bucket: test-bucket
-    region: ap-northeast-2
-    presign-minutes: 60
-  credentials:
-    access-key: test-access-key
-    secret-key: test-secret-key
