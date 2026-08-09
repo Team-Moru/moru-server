@@ -8,6 +8,7 @@ import com.moru.server.domain.routine.entity.enums.RoutineType;
 import com.moru.server.domain.routine.repository.RoutineRepository;
 import com.moru.server.domain.routine.event.RoutineTtsCreatedEvent;
 import com.moru.server.domain.routine.service.command.AI.RoutineStepGenerator;
+import com.moru.server.domain.tts.entity.TTS;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -51,14 +52,16 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             throw new BusinessException(ErrorStatus.ROUTINE_EMPTY);
         }
 
-        Member member = memberRepository.findByIdForUpdate(memberId)
-                .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
-
-        validateNoAlarmDayConflict(memberId, request.alarmDays(), null);
-
         List<List<String>> stepContents = buildStepContents(request.routines());
 
         RoutineGroup savedRoutineGroup = transactionTemplate.execute(status -> {
+            Member member = memberRepository.findByIdForUpdate(memberId)
+                    .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
+
+            validateNoAlarmDayConflict(memberId, request.alarmDays(), null);
+
+            TTS voice = member.getVoiceType();
+
             RoutineGroup routineGroup = RoutineGroup.builder()
                     .title(request.title())
                     .description(request.description())
@@ -76,7 +79,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
 
             for (Routine routine : saved.getRoutines()) {
                 for (RoutineTTS tts : routine.getTtsList()) {
-                    publishTtsEvent(tts);
+                    publishTtsEvent(tts,voice.getName());
                 }
             }
 
@@ -156,7 +159,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
     }
 
 
-    private void publishTtsEvent(RoutineTTS tts) {
+    private void publishTtsEvent(RoutineTTS tts,String voiceName) {
         if (!TransactionSynchronizationManager.isActualTransactionActive()) {
             throw new IllegalStateException(
                     "TTS 이벤트는 트랜잭션 안에서 발행해야 한다. routineTtsId=" + tts.getId());
@@ -166,7 +169,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             tts.markFailed();
             return;
         }
-        eventPublisher.publishEvent(new RoutineTtsCreatedEvent(tts.getId()));
+        eventPublisher.publishEvent(new RoutineTtsCreatedEvent(tts.getId(),voiceName));
     }
 
 
@@ -223,7 +226,14 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
 
         List<String> stepContents = buildSingleStepContents(request);
 
+
+
         Routine savedRoutine = transactionTemplate.execute(status -> {
+
+            Member member = memberRepository.findByIdForUpdate(memberId)
+                    .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
+            TTS voice = member.getVoiceType();
+
             routineGroupRepository.findByIdForUpdate(routineGroupId)
                     .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
 
@@ -243,7 +253,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             Routine saved = routineRepository.save(routine);
 
             for (RoutineTTS tts : saved.getTtsList()) {
-                publishTtsEvent(tts);
+                publishTtsEvent(tts,voice.getName());
             }
 
             return saved;
