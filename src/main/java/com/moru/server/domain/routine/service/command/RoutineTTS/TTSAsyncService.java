@@ -45,15 +45,16 @@ public class TTSAsyncService {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onRoutineTtsCreated(RoutineTtsCreatedEvent event) {
         Long routineTtsId = event.routineTtsId();
+        String voiceName = event.voiceName();
         try {
-            ttsExecutor.execute(() -> synthesizeAndUpload(routineTtsId));
+            ttsExecutor.execute(() -> synthesizeAndUpload(routineTtsId,voiceName));
         } catch (RejectedExecutionException e) {
             log.error("[TTS] 스레드풀 포화로 작업이 거절됨. routineTtsId={}", routineTtsId, e);
             markFailedQuietly(routineTtsId);
         }
     }
 
-    private void synthesizeAndUpload(Long routineTtsId) {
+    private void synthesizeAndUpload(Long routineTtsId,String voiceName) {
 
         log.info("[TTS] 백그라운드 작업 시작. routineTtsId={}, thread={}",
                 routineTtsId, Thread.currentThread().getName());
@@ -72,7 +73,7 @@ public class TTSAsyncService {
         try {
 
             GeminiResponseDTO.AiTtsResult ttsScript = aiClient.generateTtsScript(sourceText);
-            byte[] audio = googleTtsClient.synthesize(ttsScript.ttsIntro());
+            byte[] audio = googleTtsClient.synthesize(ttsScript.ttsIntro(),voiceName);
 
             String key = "tts/%d-%s.mp3".formatted(routineTtsId, UUID.randomUUID());
             s3Uploader.upload(key, audio, CONTENT_TYPE);
