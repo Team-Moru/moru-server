@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "google.tts.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "google.tts.enabled", havingValue = "true", matchIfMissing = false)
 public class GoogleTtsClient {
 
     private final TextToSpeechClient textToSpeechClient;

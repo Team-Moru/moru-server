@@ -18,7 +18,7 @@ import java.util.concurrent.RejectedExecutionException;
 
 @Service
 @Slf4j
-@ConditionalOnProperty(name = "google.tts.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "google.tts.enabled", havingValue = "true", matchIfMissing = false)
 public class TTSAsyncService {
 
     private final GoogleTtsClient googleTtsClient;

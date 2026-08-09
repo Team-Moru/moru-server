@@ -1,7 +1,12 @@
 package com.moru.server.domain.routine.service.command.RoutineGroup;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.moru.server.domain.routine.converter.RoutineGroupConverter;
 import com.moru.server.domain.routine.entity.RoutineTTS;
 import com.moru.server.domain.routine.entity.enums.RoutineType;
@@ -10,8 +15,11 @@ import com.moru.server.domain.routine.event.RoutineTtsCreatedEvent;
 import com.moru.server.domain.routine.service.command.AI.RoutineStepGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -38,52 +46,88 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
     private final ApplicationEventPublisher eventPublisher;
 
     private final TransactionTemplate transactionTemplate;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
-    @Value("${google.tts.enabled:true}")
+
+    @Value("${google.tts.enabled:false}")
     private boolean ttsEnabled;
+
+    private static final Duration DEDUP_PROCESSING_TTL = Duration.ofSeconds(30);
+    private static final Duration DEDUP_RETRY_WINDOW_TTL = Duration.ofSeconds(5);
+    private static final String DEDUP_KEY_PREFIX = "moru:dedup:";
+
+    private static final DefaultRedisScript<Long> COMPLETE_IF_OWNER_SCRIPT = new DefaultRedisScript<>("""
+        if redis.call('GET', KEYS[1]) ~= ARGV[1] then
+            return 0
+        end
+        redis.call('SET', KEYS[1], ARGV[1], 'PX', ARGV[2])
+        return 1
+        """, Long.class);
+
+
+    private static final DefaultRedisScript<Long> DELETE_IF_OWNER_SCRIPT = new DefaultRedisScript<>("""
+        if redis.call('GET', KEYS[1]) ~= ARGV[1] then
+            return 0
+        end
+        return redis.call('DEL', KEYS[1])
+        """, Long.class);
 
     @Override
     public RoutineGroupResponseDTO.DetailResponse createRoutineGroup(
             Long memberId,
             RoutineGroupRequestDTO.CreateRequest request
     ) {
-        if (request.routines() == null || request.routines().isEmpty()) {
-            throw new BusinessException(ErrorStatus.ROUTINE_EMPTY);
-        }
-
-        Member member = memberRepository.findByIdForUpdate(memberId)
-                .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
-
-        validateNoAlarmDayConflict(memberId, request.alarmDays(), null);
-
-        List<List<String>> stepContents = buildStepContents(request.routines());
-
-        RoutineGroup savedRoutineGroup = transactionTemplate.execute(status -> {
-            RoutineGroup routineGroup = RoutineGroup.builder()
-                    .title(request.title())
-                    .description(request.description())
-                    .alarmDays(request.alarmDays())
-                    .alarmTime(request.alarmTime())
-                    .weatherNotificationEnabled(request.weatherNotificationEnabled())
-                    .member(member)
-                    .build();
-
-            List<Routine> routines = createRoutines(request.routines(), stepContents, routineGroup);
-            routineGroup.getRoutines().addAll(routines);
-
-            RoutineGroup saved = routineGroupRepository.save(routineGroup);
-
-
-            for (Routine routine : saved.getRoutines()) {
-                for (RoutineTTS tts : routine.getTtsList()) {
-                    publishTtsEvent(tts);
-                }
+        DedupReservation dedupKey = reserveDedupKey("create-routine-group", memberId, request);
+        try {
+            if (request.routines() == null || request.routines().isEmpty()) {
+                throw new BusinessException(ErrorStatus.ROUTINE_EMPTY);
             }
 
-            return saved;
-        });
+            Member member = memberRepository.findByIdForUpdate(memberId)
+                    .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
 
-        return RoutineGroupConverter.toDetailResponse(savedRoutineGroup);
+            validateNoAlarmDayConflict(memberId, request.alarmDays(), null);
+
+            List<List<String>> stepContents = buildStepContents(request.routines());
+
+            RoutineGroup savedRoutineGroup = transactionTemplate.execute(status -> {
+                RoutineGroup routineGroup = RoutineGroup.builder()
+                        .title(request.title())
+                        .description(request.description())
+                        .alarmDays(request.alarmDays())
+                        .alarmTime(request.alarmTime())
+                        .weatherNotificationEnabled(request.weatherNotificationEnabled())
+                        .member(member)
+                        .build();
+
+                List<Routine> routines = createRoutines(request.routines(), stepContents, routineGroup);
+                routineGroup.getRoutines().addAll(routines);
+
+                RoutineGroup saved = routineGroupRepository.save(routineGroup);
+
+
+                for (Routine routine : saved.getRoutines()) {
+                    for (RoutineTTS tts : routine.getTtsList()) {
+                        publishTtsEvent(tts);
+                    }
+                }
+
+                return saved;
+            });
+
+            RoutineGroupResponseDTO.DetailResponse response = RoutineGroupConverter.toDetailResponse(savedRoutineGroup);
+            markDedupCompleted(dedupKey);
+            return response;
+        } catch (BusinessException e) {
+            if (e.getBaseCode() != ErrorStatus.DUPLICATE_REQUEST) {
+                releaseDedupKey(dedupKey);
+            }
+            throw e;
+        } catch (RuntimeException e) {
+            releaseDedupKey(dedupKey);
+            throw e;
+        }
     }
 
     private List<Routine> createRoutines(
@@ -155,6 +199,50 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         }
     }
 
+    private DedupReservation reserveDedupKey(String action, Long memberId, Object request) {
+        try {
+            String requestJson = objectMapper.writeValueAsString(request);
+            String requestHash = DigestUtils.sha256Hex(requestJson);
+            String dedupKey = DEDUP_KEY_PREFIX + action + ":" + memberId + ":" + requestHash;
+            String token = UUID.randomUUID().toString();
+
+            Boolean isFirstRequest = redisTemplate.opsForValue()
+                    .setIfAbsent(dedupKey, token, DEDUP_PROCESSING_TTL);
+
+            if (Boolean.FALSE.equals(isFirstRequest)) {
+                throw new BusinessException(ErrorStatus.DUPLICATE_REQUEST);
+            }
+            return new DedupReservation(dedupKey, token);
+        } catch (JsonProcessingException e) {
+            log.warn("dedup 체크용 직렬화 실패, 검증 스킵. action={}", action, e);
+            return null;
+        }
+    }
+
+    private void markDedupCompleted(DedupReservation reservation) {
+        if (reservation == null) {
+            return;
+        }
+        redisTemplate.execute(
+                COMPLETE_IF_OWNER_SCRIPT,
+                List.of(reservation.key()),
+                reservation.token(),
+                String.valueOf(DEDUP_RETRY_WINDOW_TTL.toMillis())
+        );
+    }
+
+    private void releaseDedupKey(DedupReservation reservation) {
+        if (reservation == null) {
+            return;
+        }
+        redisTemplate.execute(
+                DELETE_IF_OWNER_SCRIPT,
+                List.of(reservation.key()),
+                reservation.token()
+        );
+    }
+
+    private record DedupReservation(String key, String token) {}
 
     private void publishTtsEvent(RoutineTTS tts) {
         if (!TransactionSynchronizationManager.isActualTransactionActive()) {
@@ -217,39 +305,52 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             Long routineGroupId,
             RoutineGroupRequestDTO.RoutineRequest request
     ) {
-        RoutineGroup routineGroup = routineGroupRepository.findById(routineGroupId)
-                .filter(rg -> rg.isOwnedBy(memberId))
-                .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
-
-        List<String> stepContents = buildSingleStepContents(request);
-
-        Routine savedRoutine = transactionTemplate.execute(status -> {
-            routineGroupRepository.findByIdForUpdate(routineGroupId)
+        DedupReservation dedupKey = reserveDedupKey("add-routine:" + routineGroupId, memberId, request);
+        try {
+            RoutineGroup routineGroup = routineGroupRepository.findById(routineGroupId)
+                    .filter(rg -> rg.isOwnedBy(memberId))
                     .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
 
-            int nextOrderIndex = routineRepository.findMaxOrderIndexByRoutineGroupId(routineGroupId)
-                    .map(max -> max + 1)
-                    .orElse(0);
+            List<String> stepContents = buildSingleStepContents(request);
 
-            Routine routine = Routine.builder()
-                    .title(request.title())
-                    .type(request.type())
-                    .timer(request.durationSecond())
-                    .orderIndex(nextOrderIndex)
-                    .routineGroup(routineGroup)
-                    .build();
-            attachSteps(routine, stepContents);
+            Routine savedRoutine = transactionTemplate.execute(status -> {
+                routineGroupRepository.findByIdForUpdate(routineGroupId)
+                        .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
 
-            Routine saved = routineRepository.save(routine);
+                int nextOrderIndex = routineRepository.findMaxOrderIndexByRoutineGroupId(routineGroupId)
+                        .map(max -> max + 1)
+                        .orElse(0);
 
-            for (RoutineTTS tts : saved.getTtsList()) {
-                publishTtsEvent(tts);
+                Routine routine = Routine.builder()
+                        .title(request.title())
+                        .type(request.type())
+                        .timer(request.durationSecond())
+                        .orderIndex(nextOrderIndex)
+                        .routineGroup(routineGroup)
+                        .build();
+                attachSteps(routine, stepContents);
+
+                Routine saved = routineRepository.save(routine);
+
+                for (RoutineTTS tts : saved.getTtsList()) {
+                    publishTtsEvent(tts);
+                }
+
+                return saved;
+            });
+
+            RoutineGroupResponseDTO.RoutineResponse response = RoutineGroupConverter.toRoutineResponse(savedRoutine);
+            markDedupCompleted(dedupKey);
+            return response;
+        } catch (BusinessException e) {
+            if (e.getBaseCode() != ErrorStatus.DUPLICATE_REQUEST) {
+                releaseDedupKey(dedupKey);
             }
-
-            return saved;
-        });
-
-        return RoutineGroupConverter.toRoutineResponse(savedRoutine);
+            throw e;
+        } catch (RuntimeException e) {
+            releaseDedupKey(dedupKey);
+            throw e;
+        }
     }
 
     private void validateNoAlarmDayConflict(Long memberId, String alarmDays, Long excludeRoutineGroupId) {
