@@ -24,12 +24,20 @@ public class GoogleTtsClient {
     @Value("${google.tts.audio-encoding}")
     private String audioEncoding;
 
+    @Value("${google.tts.voice}")
+    private String defaultVoice;
+
     public byte[] synthesize(String text,String voiceName) {
+
+        String name = (voiceName == null || voiceName.isBlank())
+                ? defaultVoice
+                : "ko-KR-Chirp3-HD-" + voiceName;
+
         SynthesizeSpeechResponse response = textToSpeechClient.synthesizeSpeech(
                 SynthesisInput.newBuilder().setText(text).build(),
                 VoiceSelectionParams.newBuilder()
                         .setLanguageCode(languageCode)
-                        .setName("ko-KR-Chirp3-HD-"+voiceName)
+                        .setName(name)
                         .build(),
                 AudioConfig.newBuilder()
                         .setAudioEncoding(AudioEncoding.valueOf(audioEncoding))
