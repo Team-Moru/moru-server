@@ -21,9 +21,6 @@ public class GoogleTtsClient {
     @Value("${google.tts.language-code}")
     private String languageCode;
 
-    //@Value("${google.tts.voice}")
-    //private String voiceName;
-
     @Value("${google.tts.audio-encoding}")
     private String audioEncoding;
 
