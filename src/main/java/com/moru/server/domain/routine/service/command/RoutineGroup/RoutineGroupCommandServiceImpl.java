@@ -2,6 +2,7 @@ package com.moru.server.domain.routine.service.command.RoutineGroup;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +19,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -54,16 +56,29 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
     private static final Duration DEDUP_PROCESSING_TTL = Duration.ofSeconds(30);
     private static final Duration DEDUP_RETRY_WINDOW_TTL = Duration.ofSeconds(5);
     private static final String DEDUP_KEY_PREFIX = "moru:dedup:";
-    private static final String DEDUP_PROCESSING_VALUE = "processing";
-    private static final String DEDUP_COMPLETED_VALUE = "completed";
 
+    private static final DefaultRedisScript<Long> COMPLETE_IF_OWNER_SCRIPT = new DefaultRedisScript<>("""
+        if redis.call('GET', KEYS[1]) ~= ARGV[1] then
+            return 0
+        end
+        redis.call('SET', KEYS[1], ARGV[1], 'PX', ARGV[2])
+        return 1
+        """, Long.class);
+
+
+    private static final DefaultRedisScript<Long> DELETE_IF_OWNER_SCRIPT = new DefaultRedisScript<>("""
+        if redis.call('GET', KEYS[1]) ~= ARGV[1] then
+            return 0
+        end
+        return redis.call('DEL', KEYS[1])
+        """, Long.class);
 
     @Override
     public RoutineGroupResponseDTO.DetailResponse createRoutineGroup(
             Long memberId,
             RoutineGroupRequestDTO.CreateRequest request
     ) {
-        String dedupKey = reserveDedupKey("create-routine-group", memberId, request);
+        DedupReservation dedupKey = reserveDedupKey("create-routine-group", memberId, request);
         try {
             if (request.routines() == null || request.routines().isEmpty()) {
                 throw new BusinessException(ErrorStatus.ROUTINE_EMPTY);
@@ -184,38 +199,50 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         }
     }
 
-    private String reserveDedupKey(String action, Long memberId, Object request) {
+    private DedupReservation reserveDedupKey(String action, Long memberId, Object request) {
         try {
             String requestJson = objectMapper.writeValueAsString(request);
             String requestHash = DigestUtils.sha256Hex(requestJson);
             String dedupKey = DEDUP_KEY_PREFIX + action + ":" + memberId + ":" + requestHash;
+            String token = UUID.randomUUID().toString();
 
             Boolean isFirstRequest = redisTemplate.opsForValue()
-                    .setIfAbsent(dedupKey, DEDUP_PROCESSING_VALUE, DEDUP_PROCESSING_TTL);
+                    .setIfAbsent(dedupKey, token, DEDUP_PROCESSING_TTL);
 
             if (Boolean.FALSE.equals(isFirstRequest)) {
                 throw new BusinessException(ErrorStatus.DUPLICATE_REQUEST);
             }
-            return dedupKey;
+            return new DedupReservation(dedupKey, token);
         } catch (JsonProcessingException e) {
             log.warn("dedup 체크용 직렬화 실패, 검증 스킵. action={}", action, e);
             return null;
         }
     }
 
-    private void markDedupCompleted(String dedupKey) {
-        if (dedupKey == null) {
+    private void markDedupCompleted(DedupReservation reservation) {
+        if (reservation == null) {
             return;
         }
-        redisTemplate.opsForValue().set(dedupKey, DEDUP_COMPLETED_VALUE, DEDUP_RETRY_WINDOW_TTL);
+        redisTemplate.execute(
+                COMPLETE_IF_OWNER_SCRIPT,
+                List.of(reservation.key()),
+                reservation.token(),
+                String.valueOf(DEDUP_RETRY_WINDOW_TTL.toMillis())
+        );
     }
 
-    private void releaseDedupKey(String dedupKey) {
-        if (dedupKey == null) {
+    private void releaseDedupKey(DedupReservation reservation) {
+        if (reservation == null) {
             return;
         }
-        redisTemplate.delete(dedupKey);
+        redisTemplate.execute(
+                DELETE_IF_OWNER_SCRIPT,
+                List.of(reservation.key()),
+                reservation.token()
+        );
     }
+
+    private record DedupReservation(String key, String token) {}
 
     private void publishTtsEvent(RoutineTTS tts) {
         if (!TransactionSynchronizationManager.isActualTransactionActive()) {
@@ -278,7 +305,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             Long routineGroupId,
             RoutineGroupRequestDTO.RoutineRequest request
     ) {
-        String dedupKey = reserveDedupKey("add-routine:" + routineGroupId, memberId, request);
+        DedupReservation dedupKey = reserveDedupKey("add-routine:" + routineGroupId, memberId, request);
         try {
             RoutineGroup routineGroup = routineGroupRepository.findById(routineGroupId)
                     .filter(rg -> rg.isOwnedBy(memberId))
