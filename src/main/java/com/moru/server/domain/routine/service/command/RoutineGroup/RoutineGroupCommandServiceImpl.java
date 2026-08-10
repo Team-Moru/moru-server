@@ -28,6 +28,8 @@ import com.moru.server.domain.routine.entity.RoutineGroup;
 import com.moru.server.domain.routine.repository.RoutineGroupRepository;
 import com.moru.server.global.exception.BusinessException;
 import com.moru.server.global.response.code.status.ErrorStatus;
+import com.moru.server.global.idempotency.DeletedResourceTombstoneService;
+
 
 @Slf4j
 @Service
@@ -42,7 +44,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
 
     private final IdempotencyService idempotencyService;
     private final TransactionTemplate transactionTemplate;
-
+    private final DeletedResourceTombstoneService tombstoneService;
 
     @Value("${google.tts.enabled:false}")
     private boolean ttsEnabled;
@@ -194,7 +196,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
     public RoutineGroupResponseDTO.DeleteResponse deleteRoutineGroup(
             Long memberId,
             Long routineGroupId,
-            String idempotencyKey   // 파라미터 추가됨
+            String idempotencyKey
     ) {
         return idempotencyService.execute(
                 "delete-routine-group:" + routineGroupId,
@@ -204,13 +206,22 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
                 RoutineGroupResponseDTO.DeleteResponse.class,
                 () -> transactionTemplate.execute(status -> {
                     RoutineGroup routineGroup = routineGroupRepository.findById(routineGroupId)
-                            .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
+                            .orElse(null);
+
+                    if (routineGroup == null) {
+                        // 이미 삭제된 리소스인지 확인 - 내가 지운 거면 성공으로 처리
+                        if (tombstoneService.wasDeletedBy("routine-group", routineGroupId, memberId)) {
+                            return RoutineGroupConverter.toDeleteResponse(routineGroupId);
+                        }
+                        throw new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND);
+                    }
 
                     if (!routineGroup.isOwnedBy(memberId)) {
                         throw new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND);
                     }
 
                     routineGroupRepository.delete(routineGroup);
+                    tombstoneService.markDeleted("routine-group", routineGroupId, memberId);
 
                     return RoutineGroupConverter.toDeleteResponse(routineGroupId);
                 })
