@@ -72,38 +72,34 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             throw new BusinessException(ErrorStatus.ROUTINE_EMPTY);
         }
 
-            List<List<String>> stepContents = buildStepContents(request.routines());
+        List<List<String>> stepContents = buildStepContents(request.routines());
 
-            RoutineGroup savedRoutineGroup = transactionTemplate.execute(status -> {
-                Member member = memberRepository.findByIdForUpdate(memberId)
-                        .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
+        RoutineGroup savedRoutineGroup = transactionTemplate.execute(status -> {
+            Member member = memberRepository.findByIdForUpdate(memberId)
+                    .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
 
-                validateNoAlarmDayConflict(memberId, request.alarmDays(), null);
+            validateNoAlarmDayConflict(memberId, request.alarmDays(), null);
 
-                TTS voice = member.getVoiceType();
-                String voiceName = (voice != null) ? voice.getName() : null;
+            TTS voice = member.getVoiceType();
+            String voiceName = (voice != null) ? voice.getName() : null;
 
-                RoutineGroup routineGroup = RoutineGroup.builder()
-                        .title(request.title())
-                        .description(request.description())
-                        .alarmDays(request.alarmDays())
-                        .alarmTime(request.alarmTime())
-                        .weatherNotificationEnabled(request.weatherNotificationEnabled())
-                        .member(member)
-                        .build();
-
-                List<Routine> routines = createRoutines(request.routines(), stepContents, routineGroup);
-                routineGroup.getRoutines().addAll(routines);
+            RoutineGroup routineGroup = RoutineGroup.builder()
+                    .title(request.title())
+                    .description(request.description())
+                    .alarmDays(request.alarmDays())
+                    .alarmTime(request.alarmTime())
+                    .weatherNotificationEnabled(request.weatherNotificationEnabled())
+                    .member(member)
+                    .build();
 
             List<Routine> routines = createRoutines(request.routines(), stepContents, routineGroup);
             routineGroup.getRoutines().addAll(routines);
 
             RoutineGroup saved = routineGroupRepository.save(routineGroup);
 
-                for (Routine routine : saved.getRoutines()) {
-                    for (RoutineTTS tts : routine.getTtsList()) {
-                        publishTtsEvent(tts, voiceName);
-                    }
+            for (Routine routine : saved.getRoutines()) {
+                for (RoutineTTS tts : routine.getTtsList()) {
+                    publishTtsEvent(tts, voiceName);
                 }
             }
 
