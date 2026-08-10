@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface RoutineTTSRepository extends JpaRepository<RoutineTTS, Long> {
 
@@ -28,4 +29,21 @@ public interface RoutineTTSRepository extends JpaRepository<RoutineTTS, Long> {
         order by t.routine.id asc, t.orderIndex asc
     """)
     List<RoutineTTS> findAllByRoutineIdsOrdered(@Param("routineIds") List<Long> routineIds);
+
+    @Query("""
+        select t from RoutineTTS t
+        join t.routine r
+        join r.routineGroup g
+        where g.member.id = :memberId
+        order by t.id asc
+    """)
+    List<RoutineTTS> findAllByMemberId(@Param("memberId") Long memberId);
+
+    @Query("""
+        select g.member.voiceSelectionVersion from RoutineTTS t
+        join t.routine r
+        join r.routineGroup g
+        where t.id = :routineTtsId
+    """)
+    Optional<Long> findCurrentVoiceVersion(@Param("routineTtsId") Long routineTtsId);
 }
