@@ -41,6 +41,8 @@ services:
 
     restart: unless-stopped
 
+    stop_grace_period: 90s
+
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:${SERVER_PORT:-8080}/health || exit 1"]
       interval: 30s
