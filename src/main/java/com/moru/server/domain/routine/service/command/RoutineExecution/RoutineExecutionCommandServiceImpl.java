@@ -17,6 +17,7 @@ import com.moru.server.global.response.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
@@ -26,10 +27,10 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
     private final RoutineRepository routineRepository;
     private final AiClient aiClient;
     private final IdempotencyService idempotencyService;
+    private final TransactionTemplate transactionTemplate;
 
 
     @Override
-    @Transactional
     public RoutineExecutionResponseDTO.RoutineExecutionResultRes saveExecutionResult(
             Long memberId,
             RoutineExecutionRequestDTO.RoutineExecutionResultReq req,
@@ -40,7 +41,7 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
                 memberId,
                 idempotencyKey,
                 RoutineExecutionResponseDTO.RoutineExecutionResultRes.class,
-                () -> {
+                () -> transactionTemplate.execute(status -> {
                     Routine routine = routineRepository.findById(req.routineId())
                             .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_NOT_FOUND));
 
@@ -52,7 +53,7 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
                     routineExecutionRepository.save(routineExecution);
 
                     return RoutineExecutionConverter.toResponse(routineExecution);
-                }
+                })
         );
     }
 

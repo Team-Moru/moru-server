@@ -24,7 +24,7 @@ public class RedisIdempotencyService implements IdempotencyService {
     private final StringRedisTemplate redisTemplate;
 
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
-    private static final Duration PROCESSING_TTL = Duration.ofSeconds(30);
+    private static final Duration PROCESSING_TTL = Duration.ofSeconds(60);
     private static final Duration COMPLETED_TTL = Duration.ofHours(24);
     private static final String KEY_PREFIX = "moru:idem:";
 
@@ -88,13 +88,16 @@ public class RedisIdempotencyService implements IdempotencyService {
         try {
             T result = operation.get();
             Envelope completed = new Envelope("COMPLETED", token, writeValue(result));
-            redisTemplate.execute(
+            Long completedResult = redisTemplate.execute(
                     COMPLETE_IF_OWNER_SCRIPT,
                     List.of(redisKey),
                     token,
                     writeJson(completed),
                     String.valueOf(COMPLETED_TTL.toSeconds())
             );
+            if (completedResult == null || completedResult != 1L) {
+                log.error("[Idempotency] PROCESSING 락 소유권 상실. key={} - 동시 중복 처리 위험", redisKey);
+            }
             return result;
         } catch (RuntimeException e) {
             redisTemplate.execute(RELEASE_IF_PROCESSING_SCRIPT, List.of(redisKey), token);

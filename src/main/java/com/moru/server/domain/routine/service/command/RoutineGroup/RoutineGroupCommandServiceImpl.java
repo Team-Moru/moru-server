@@ -72,14 +72,15 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             throw new BusinessException(ErrorStatus.ROUTINE_EMPTY);
         }
 
-        Member member = memberRepository.findByIdForUpdate(memberId)
-                .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
-
-        validateNoAlarmDayConflict(memberId, request.alarmDays(), null);
-
         List<List<String>> stepContents = buildStepContents(request.routines());
 
         RoutineGroup savedRoutineGroup = transactionTemplate.execute(status -> {
+            // member 조회 + 검증을 트랜잭션 안으로 이동
+            Member member = memberRepository.findByIdForUpdate(memberId)
+                    .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
+
+            validateNoAlarmDayConflict(memberId, request.alarmDays(), null);
+
             RoutineGroup routineGroup = RoutineGroup.builder()
                     .title(request.title())
                     .description(request.description())

@@ -10,6 +10,7 @@ import com.moru.server.global.response.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
@@ -18,6 +19,7 @@ public class RoutineCommandServiceImpl implements RoutineCommandService {
 
     private final RoutineRepository routineRepository;
     private final IdempotencyService idempotencyService;
+    private final TransactionTemplate transactionTemplate;
 
     @Override
     public RoutineResponseDTO.DeleteResponse deleteRoutine(
@@ -30,7 +32,7 @@ public class RoutineCommandServiceImpl implements RoutineCommandService {
                 memberId,
                 idempotencyKey,
                 RoutineResponseDTO.DeleteResponse.class,
-                () -> {
+                () -> transactionTemplate.execute(status -> {
                     Routine routine = routineRepository.findById(routineId)
                             .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_NOT_FOUND));
 
@@ -41,7 +43,7 @@ public class RoutineCommandServiceImpl implements RoutineCommandService {
                     routineRepository.delete(routine);
 
                     return RoutineConverter.toDeleteResponse(routineId);
-                }
+                })
         );
     }
 }
