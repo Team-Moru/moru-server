@@ -10,7 +10,7 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 @Component
-@ConditionalOnProperty(name = "google.tts.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "google.tts.enabled", havingValue = "true", matchIfMissing = false)
 @RequiredArgsConstructor
 public class S3Uploader {
 

@@ -16,7 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 @Configuration
-@ConditionalOnProperty(name = "google.tts.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "google.tts.enabled", havingValue = "true", matchIfMissing = false)
 public class GoogleTtsConfig {
 
     private final ResourceLoader resourceLoader;

@@ -12,7 +12,7 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 
 @Configuration
-@ConditionalOnProperty(name = "google.tts.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "google.tts.enabled", havingValue = "true", matchIfMissing = false)
 public class S3Config {
 
     @Value("${aws.s3.region}")
