@@ -4,6 +4,7 @@ package com.moru.server.domain.routine.converter;
 import java.util.List;
 import java.util.Map;
 
+import com.moru.server.domain.routine.dto.RoutineGroupRequestDTO;
 import com.moru.server.domain.routine.dto.RoutineGroupResponseDTO;
 import com.moru.server.domain.routine.entity.Routine;
 import com.moru.server.domain.routine.entity.RoutineExecution;
@@ -24,6 +25,42 @@ public class RoutineGroupConverter {
                 .alarmTime(routineGroup.getAlarmTime())
                 .weatherNotificationEnabled(routineGroup.getWeatherNotificationEnabled())
                 .routines(routineResponses)
+                .build();
+    }
+
+    public static RoutineGroupResponseDTO.DetailResponse toDetailResponse(
+            RoutineGroup routineGroup,
+            RoutineGroupRequestDTO.CreateRequest request
+    ) {
+        List<Routine> routines = routineGroup.getRoutines();
+        List<RoutineGroupRequestDTO.RoutineRequest> routineRequests = request.routines();
+        List<RoutineGroupResponseDTO.RoutineResponse> routineResponses = new java.util.ArrayList<>();
+        for (int i = 0; i < routines.size(); i++) {
+            String clientEntityId = (routineRequests != null && i < routineRequests.size())
+                    ? routineRequests.get(i).clientEntityId()
+                    : null;
+            routineResponses.add(toRoutineResponse(routines.get(i), clientEntityId));
+        }
+        return RoutineGroupResponseDTO.DetailResponse.builder()
+                .routineGroupId(routineGroup.getId())
+                .clientEntityId(request.clientEntityId())
+                .title(routineGroup.getTitle())
+                .description(routineGroup.getDescription())
+                .alarmDays(routineGroup.getAlarmDays())
+                .alarmTime(routineGroup.getAlarmTime())
+                .weatherNotificationEnabled(routineGroup.getWeatherNotificationEnabled())
+                .routines(routineResponses)
+                .build();
+    }
+
+    public static RoutineGroupResponseDTO.RoutineResponse toRoutineResponse(Routine routine, String clientEntityId) {
+        return RoutineGroupResponseDTO.RoutineResponse.builder()
+                .routineId(routine.getId())
+                .clientEntityId(clientEntityId)
+                .title(routine.getTitle())
+                .type(routine.getType())
+                .durationSecond(routine.getTimer())
+                .steps(toStepResponses(routine))
                 .build();
     }
 

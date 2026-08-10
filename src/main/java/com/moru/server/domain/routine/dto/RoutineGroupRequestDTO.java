@@ -48,7 +48,10 @@ public record RoutineGroupRequestDTO() {
             @NotNull(message = "routines 값은 필수입니다.")
             @Valid
             @Schema(description = "루틴 목록")
-            List<RoutineRequest> routines
+            List<RoutineRequest> routines,
+
+            @Schema(description = "클라이언트 로컬 ID (그룹). 로컬-서버 ID 매핑용, 생략 가능", example = "local-group-1")
+            String clientEntityId
     ) {
     }
 
@@ -66,7 +69,10 @@ public record RoutineGroupRequestDTO() {
             @NotNull(message = "durationSecond는 필수입니다.")
             @PositiveOrZero(message = "durationSecond는 0 이상이어야 합니다.")
             @Schema(description = "타이머/입력 소요 시간(초)", example = "180")
-            Integer durationSecond
+            Integer durationSecond,
+
+            @Schema(description = "클라이언트 로컬 ID (루틴 항목). 로컬-서버 ID 매핑용, 생략 가능", example = "local-routine-1")
+            String clientEntityId
     ) {
     }
 

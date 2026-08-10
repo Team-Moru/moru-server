@@ -15,6 +15,9 @@ public record RoutineGroupResponseDTO() {
             @Schema(description = "루틴 그룹 ID", example = "10")
             Long routineGroupId,
 
+            @Schema(description = "클라이언트 로컬 ID", example = "local-group-1", nullable = true)
+            String clientEntityId,
+
             @Schema(description = "루틴 그룹 제목", example = "활력 루틴")
             String title,
 
@@ -40,6 +43,9 @@ public record RoutineGroupResponseDTO() {
     public record RoutineResponse(
             @Schema(description = "루틴 ID", example = "101")
             Long routineId,
+
+            @Schema(description = "클라이언트 로컬 ID", example = "local-routine-1", nullable = true)
+            String clientEntityId,
 
             @Schema(description = "루틴 제목", example = "잠자리 정리하기")
             String title,

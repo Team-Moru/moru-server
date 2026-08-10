@@ -103,7 +103,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             return saved;
         });
 
-        return RoutineGroupConverter.toDetailResponse(savedRoutineGroup);
+        return RoutineGroupConverter.toDetailResponse(savedRoutineGroup, request);
     }
 
     private List<Routine> createRoutines(
@@ -260,7 +260,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         );
     }
 
-    // 이하 doAddRoutine으로 이름만 바꾸고, try-catch(dedup) 부분만 제거
+
     private RoutineGroupResponseDTO.RoutineResponse doAddRoutine(
             Long memberId,
             Long routineGroupId,
@@ -298,7 +298,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             return saved;
         });
 
-        return RoutineGroupConverter.toRoutineResponse(savedRoutine);
+        return RoutineGroupConverter.toRoutineResponse(savedRoutine, request.clientEntityId());
     }
 
     private void validateNoAlarmDayConflict(Long memberId, String alarmDays, Long excludeRoutineGroupId) {
