@@ -38,11 +38,11 @@ public class RoutineExecutionController {
     @PostMapping()
     public ApiResponse<RoutineExecutionResponseDTO.RoutineExecutionResultRes> createRoutineExecution(
             @AuthenticationPrincipal AuthenticatedMember member,
-            @Valid @RequestBody RoutineExecutionRequestDTO.RoutineExecutionResultReq request
-    ){
-
+            @Valid @RequestBody RoutineExecutionRequestDTO.RoutineExecutionResultReq request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
+    ) {
         return ApiResponse.of(SuccessStatus._CREATED,
-                routineExecutionCommandService.saveExecutionResult(member.memberId(),request));
+                routineExecutionCommandService.saveExecutionResult(member.memberId(), request, idempotencyKey));
     }
 
     @Operation(summary = "월별 루틴 실행 이력 조회", description = "특정 연월의 날짜별 루틴 실행 달성률을 조회합니다.")
@@ -51,7 +51,7 @@ public class RoutineExecutionController {
             @AuthenticationPrincipal AuthenticatedMember member,
             @RequestParam @Min(2000) @Max(999999999) Integer year,
             @RequestParam @Min(1) @Max(12) Integer month
-    ){
+    ) {
 
         return ApiResponse.onSuccess(
                 routineExecutionQueryService.getMonthlyExecutions(member.memberId(), year, month));
@@ -62,7 +62,7 @@ public class RoutineExecutionController {
     @GetMapping("/weekly")
     public ApiResponse<RoutineExecutionResponseDTO.WeeklyReportResponse> getWeeklyReport(
             @AuthenticationPrincipal AuthenticatedMember member
-    ){
+    ) {
 
         return ApiResponse.onSuccess(routineExecutionQueryService.getWeeklyReport(member.memberId()));
     }
@@ -71,7 +71,7 @@ public class RoutineExecutionController {
     @GetMapping("/wake-pattern")
     public ApiResponse<RoutineExecutionResponseDTO.WakePatternResponse> getWakePattern(
             @AuthenticationPrincipal AuthenticatedMember member
-    ){
+    ) {
         return ApiResponse.onSuccess(routineExecutionQueryService.getWakePattern(member.memberId()));
     }
 
@@ -80,8 +80,8 @@ public class RoutineExecutionController {
     public ApiResponse<RoutineExecutionResponseDTO.AiResponseRes> judgeRoutineExecution(
             @AuthenticationPrincipal AuthenticatedMember member,
             @Valid @RequestBody RoutineExecutionRequestDTO.AiResponseReq req
-    ){
-        return ApiResponse.onSuccess(routineExecutionCommandService.judgeUserResponse(member.memberId(),req));
+    ) {
+        return ApiResponse.onSuccess(routineExecutionCommandService.judgeUserResponse(member.memberId(), req));
     }
 
     @Operation(summary = "오늘 루틴 완료 조회", description = "특정 날짜의 루틴 실행 결과(완수율, 스트릭, 총 소요시간, 실제 기상시간, 루틴별 상세)를 조회합니다.")
@@ -89,7 +89,7 @@ public class RoutineExecutionController {
     public ApiResponse<RoutineExecutionResponseDTO.DailyResponse> getDailyReport(
             @AuthenticationPrincipal AuthenticatedMember member,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
-    ){
+    ) {
         return ApiResponse.onSuccess(routineExecutionQueryService.getDailyResponse(member.memberId(), date));
     }
 

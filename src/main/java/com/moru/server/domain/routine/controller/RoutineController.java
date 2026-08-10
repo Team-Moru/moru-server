@@ -10,8 +10,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
 
 @Tag(name = "Routine", description = "루틴 API")
 @RestController
@@ -25,8 +27,9 @@ public class RoutineController {
     @DeleteMapping("/{routineId}")
     public ApiResponse<RoutineResponseDTO.DeleteResponse> deleteRoutine(
             @AuthenticationPrincipal AuthenticatedMember member,
-            @PathVariable Long routineId
+            @PathVariable Long routineId,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
     ) {
-        return ApiResponse.onSuccess(routineCommandService.deleteRoutine(member.memberId(), routineId));
+        return ApiResponse.onSuccess(routineCommandService.deleteRoutine(member.memberId(), routineId, idempotencyKey));
     }
 }
