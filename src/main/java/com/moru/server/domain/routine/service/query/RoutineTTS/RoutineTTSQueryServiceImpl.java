@@ -84,6 +84,7 @@ public class RoutineTTSQueryServiceImpl implements RoutineTTSQueryService {
                 .ttsIntro(tts.getTtsIntro())
                 .ttsStatus(tts.getTtsStatus().name())
                 .s3Url(generatePresignedUrl(tts.getS3Url()))
+                .selectionVersion(tts.getVoiceVersion())
                 .build();
     }
 

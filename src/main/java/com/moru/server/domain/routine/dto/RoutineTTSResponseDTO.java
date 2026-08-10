@@ -42,7 +42,15 @@ public record RoutineTTSResponseDTO() {
                 String ttsStatus,
 
                 @Schema(description = "음원 파일 S3 URL", example = "https://.../101.mp3", nullable = true)
-                String s3Url
+                String s3Url,
+
+                @Schema(description = """
+                        이 음원이 만들어진 목소리 선택 버전. 합성에 성공한 시점에만 기록된다.
+                        PATCH /members/me/tts 응답의 selectionVersion 과 이 값이 같고
+                        ttsStatus 가 COMPLETED 일 때만 최신 목소리로 만들어진 음원이다.
+                        값이 더 작으면 아직 재합성이 끝나지 않아 이전 목소리의 음원이 내려가는 중이다.""",
+                        example = "3", nullable = true)
+                Long selectionVersion
         ) {}
     }
 }
