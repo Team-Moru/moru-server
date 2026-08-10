@@ -43,11 +43,21 @@ public class MemberCommandServiceImpl implements MemberCommandService {
         TTS tts = ttsRepository.findById(ttsId)
                 .orElseThrow(() -> new BusinessException(ErrorStatus.TTS_NOT_FOUND));
 
+        if (isSameVoice(member, ttsId)) {
+            log.info("[TTS] 동일한 목소리라 재합성하지 않음. memberId={}, ttsId={}", memberId, ttsId);
+            return MemberConverter.toTtsUpdateResponse(member);
+        }
+
         member.updateVoiceType(tts);
 
         requestRegeneration(memberId, tts.getName(), member.getVoiceSelectionVersion());
 
         return MemberConverter.toTtsUpdateResponse(member);
+    }
+
+    private boolean isSameVoice(Member member, Long ttsId) {
+        TTS current = member.getVoiceType();
+        return current != null && current.getId().equals(ttsId);
     }
 
     private void requestRegeneration(Long memberId, String voiceName, Long voiceVersion) {
