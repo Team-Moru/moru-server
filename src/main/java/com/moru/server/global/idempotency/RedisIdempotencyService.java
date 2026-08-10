@@ -1,5 +1,6 @@
 package com.moru.server.global.idempotency;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.moru.server.global.exception.BusinessException;
@@ -22,8 +23,8 @@ import java.util.function.Supplier;
 public class RedisIdempotencyService implements IdempotencyService {
 
     private final StringRedisTemplate redisTemplate;
-
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+
     private static final Duration PROCESSING_TTL = Duration.ofSeconds(60);
     private static final Duration COMPLETED_TTL = Duration.ofHours(24);
     private static final String KEY_PREFIX = "moru:idem:";
@@ -58,6 +59,7 @@ public class RedisIdempotencyService implements IdempotencyService {
             String action,
             Long memberId,
             String idempotencyKey,
+            Object requestBody,
             Class<T> responseType,
             Supplier<T> operation
     ) {
@@ -65,10 +67,11 @@ public class RedisIdempotencyService implements IdempotencyService {
             return operation.get();
         }
 
+        String requestHash = hashRequest(requestBody);
         String redisKey = KEY_PREFIX + action + ":" + memberId + ":" + idempotencyKey;
         String token = UUID.randomUUID().toString();
 
-        Envelope processing = new Envelope("PROCESSING", token, null);
+        Envelope processing = new Envelope("PROCESSING", token, null, requestHash);
         Boolean isFirst = redisTemplate.opsForValue()
                 .setIfAbsent(redisKey, writeJson(processing), PROCESSING_TTL);
 
@@ -78,6 +81,11 @@ public class RedisIdempotencyService implements IdempotencyService {
             if (existing == null) {
                 return operation.get();
             }
+
+            if (!requestHash.equals(existing.requestHash())) {
+                throw new BusinessException(ErrorStatus.IDEMPOTENCY_KEY_REUSED);
+            }
+
             if ("COMPLETED".equals(existing.status())) {
                 log.info("[Idempotency] 캐시된 응답 재반환. key={}", redisKey);
                 return readValue(existing.body(), responseType);
@@ -87,7 +95,7 @@ public class RedisIdempotencyService implements IdempotencyService {
 
         try {
             T result = operation.get();
-            Envelope completed = new Envelope("COMPLETED", token, writeValue(result));
+            Envelope completed = new Envelope("COMPLETED", token, writeValue(result), requestHash);
             Long completedResult = redisTemplate.execute(
                     COMPLETE_IF_OWNER_SCRIPT,
                     List.of(redisKey),
@@ -102,6 +110,15 @@ public class RedisIdempotencyService implements IdempotencyService {
         } catch (RuntimeException e) {
             redisTemplate.execute(RELEASE_IF_PROCESSING_SCRIPT, List.of(redisKey), token);
             throw e;
+        }
+    }
+
+    private String hashRequest(Object requestBody) {
+        try {
+            String json = objectMapper.writeValueAsString(requestBody);
+            return DigestUtils.sha256Hex(json);
+        } catch (Exception e) {
+            throw new IllegalStateException("요청 해싱 실패", e);
         }
     }
 
@@ -139,5 +156,5 @@ public class RedisIdempotencyService implements IdempotencyService {
         }
     }
 
-    private record Envelope(String status, String token, String body) {}
+    private record Envelope(String status, String token, String body, String requestHash) {}
 }

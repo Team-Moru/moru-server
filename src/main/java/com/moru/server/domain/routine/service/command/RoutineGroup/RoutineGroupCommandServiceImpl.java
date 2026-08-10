@@ -56,9 +56,8 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             String idempotencyKey   // 파라미터 추가됨
     ) {
         return idempotencyService.execute(
-                "create-routine-group",
-                memberId,
-                idempotencyKey,
+                "create-routine-group", memberId, idempotencyKey,
+                request,
                 RoutineGroupResponseDTO.DetailResponse.class,
                 () -> doCreateRoutineGroup(memberId, request)
         );
@@ -201,6 +200,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
                 "delete-routine-group:" + routineGroupId,
                 memberId,
                 idempotencyKey,
+                routineGroupId,
                 RoutineGroupResponseDTO.DeleteResponse.class,
                 () -> transactionTemplate.execute(status -> {
                     RoutineGroup routineGroup = routineGroupRepository.findById(routineGroupId)
@@ -254,6 +254,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
                 "add-routine:" + routineGroupId,
                 memberId,
                 idempotencyKey,
+                request,
                 RoutineGroupResponseDTO.RoutineResponse.class,
                 () -> doAddRoutine(memberId, routineGroupId, request)
         );

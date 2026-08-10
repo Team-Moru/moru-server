@@ -14,10 +14,12 @@ public interface IdempotencyService {
      * @param responseType     캐싱된 응답을 역직렬화할 타입
      * @param operation        실제 처리 로직
      */
+
     <T> T execute(
             String action,
             Long memberId,
             String idempotencyKey,
+            Object requestBody,
             Class<T> responseType,
             Supplier<T> operation
     );

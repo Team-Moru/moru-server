@@ -9,12 +9,10 @@ import com.moru.server.global.idempotency.IdempotencyService;
 import com.moru.server.global.response.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class RoutineCommandServiceImpl implements RoutineCommandService {
 
     private final RoutineRepository routineRepository;
@@ -31,6 +29,7 @@ public class RoutineCommandServiceImpl implements RoutineCommandService {
                 "delete-routine:" + routineId,
                 memberId,
                 idempotencyKey,
+                routineId,
                 RoutineResponseDTO.DeleteResponse.class,
                 () -> transactionTemplate.execute(status -> {
                     Routine routine = routineRepository.findById(routineId)
