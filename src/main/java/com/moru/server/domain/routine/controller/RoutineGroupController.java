@@ -33,11 +33,13 @@ public class RoutineGroupController {
     @PostMapping
     public ApiResponse<RoutineGroupResponseDTO.DetailResponse> createRoutineGroup(
             @AuthenticationPrincipal AuthenticatedMember member,
-            @Valid @RequestBody RoutineGroupRequestDTO.CreateRequest request
+            @Valid @RequestBody RoutineGroupRequestDTO.CreateRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
     ) {
         return ApiResponse.of(SuccessStatus._CREATED,
-                routineGroupCommandService.createRoutineGroup(member.memberId(), request));
+                routineGroupCommandService.createRoutineGroup(member.memberId(), request, idempotencyKey));
     }
+
 
     @Operation(summary = "루틴 그룹 상세 조회", description = "루틴 그룹 상세 정보를 조회합니다.")
     @GetMapping("/{routineGroupId}")
@@ -47,14 +49,15 @@ public class RoutineGroupController {
     ) {
         return ApiResponse.onSuccess(routineGroupQueryService.getRoutineGroupDetail(member.memberId(), routineGroupId));
     }
-  
+
     @Operation(summary = "루틴 그룹 삭제", description = "루틴 그룹을 삭제합니다.")
     @DeleteMapping("/{routineGroupId}")
     public ApiResponse<RoutineGroupResponseDTO.DeleteResponse> deleteRoutineGroup(
             @AuthenticationPrincipal AuthenticatedMember member,
-            @PathVariable Long routineGroupId
+            @PathVariable Long routineGroupId,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
     ) {
-        return ApiResponse.onSuccess(routineGroupCommandService.deleteRoutineGroup(member.memberId(), routineGroupId));
+        return ApiResponse.onSuccess(routineGroupCommandService.deleteRoutineGroup(member.memberId(), routineGroupId, idempotencyKey));
     }
   
     @Operation(summary = "루틴 그룹 활성화 토글", description = "루틴 그룹의 활성화 상태를 토글합니다.")
@@ -96,10 +99,11 @@ public class RoutineGroupController {
     public ApiResponse<RoutineGroupResponseDTO.RoutineResponse> addRoutine(
             @AuthenticationPrincipal AuthenticatedMember member,
             @PathVariable Long routineGroupId,
-            @Valid @RequestBody RoutineGroupRequestDTO.RoutineRequest request
+            @Valid @RequestBody RoutineGroupRequestDTO.RoutineRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
     ) {
         return ApiResponse.of(SuccessStatus._CREATED,
-                routineGroupCommandService.addRoutine(member.memberId(), routineGroupId, request));
+                routineGroupCommandService.addRoutine(member.memberId(), routineGroupId, request, idempotencyKey));
     }
 
     @Operation(summary = "AI 루틴 그룹 생성", description = "자연어 입력을 기반으로 AI가 루틴 그룹을 생성합니다.")
