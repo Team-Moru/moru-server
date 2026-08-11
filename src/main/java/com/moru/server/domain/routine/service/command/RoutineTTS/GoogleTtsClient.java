@@ -18,20 +18,20 @@ public class GoogleTtsClient {
 
     private final TextToSpeechClient textToSpeechClient;
 
-    @Value("${google.tts.language-code}")
+    @Value("${google.tts.language-code:ko-KR}")
     private String languageCode;
 
-    @Value("${google.tts.audio-encoding}")
+    @Value("${google.tts.audio-encoding:MP3}")
     private String audioEncoding;
 
-    @Value("${google.tts.voice}")
+    @Value("${google.tts.voice:ko-KR-Chirp3-HD-Aoede}")
     private String defaultVoice;
 
-    public byte[] synthesize(String text,String voiceName) {
+    public byte[] synthesize(String text, String voiceName) {
 
         String name = (voiceName == null || voiceName.isBlank())
                 ? defaultVoice
-                : "ko-KR-Chirp3-HD-" + voiceName;
+                : voiceName;
 
         SynthesizeSpeechResponse response = textToSpeechClient.synthesizeSpeech(
                 SynthesisInput.newBuilder().setText(text).build(),

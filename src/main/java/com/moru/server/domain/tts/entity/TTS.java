@@ -19,6 +19,9 @@ public class TTS extends BaseEntity {
     @Column(name = "name", nullable = false, length = 50)
     private String name;
 
+    @Column(name = "google_voice_name", length = 100)
+    private String googleVoiceName;
+
     @Column(name = "label", nullable = false, length = 100)
     private String label;
 

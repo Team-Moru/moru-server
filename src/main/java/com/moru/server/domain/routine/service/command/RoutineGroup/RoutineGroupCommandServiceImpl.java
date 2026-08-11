@@ -81,7 +81,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             validateNoAlarmDayConflict(memberId, request.alarmDays(), null);
 
             TTS voice = member.getVoiceType();
-            String voiceName = (voice != null) ? voice.getName() : null;
+            String voiceName = (voice != null) ? voice.getGoogleVoiceName() : null;
 
             RoutineGroup routineGroup = RoutineGroup.builder()
                     .title(request.title())
@@ -280,7 +280,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
                         .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
 
                 TTS voice = member.getVoiceType();
-                String voiceName = (voice != null) ? voice.getName() : null;
+                String voiceName = (voice != null) ? voice.getGoogleVoiceName() : null;
 
                 routineGroupRepository.findByIdForUpdate(routineGroupId)
                         .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
