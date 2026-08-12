@@ -9,6 +9,7 @@ import com.moru.server.global.response.ApiResponse;
 import com.moru.server.global.response.code.status.SuccessStatus;
 import com.moru.server.global.security.auth.AuthenticatedMember;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -75,7 +76,33 @@ public class RoutineExecutionController {
         return ApiResponse.onSuccess(routineExecutionQueryService.getWakePattern(member.memberId()));
     }
 
-    @Operation(summary = "루틴 실행 AI 응답 확인", description = "사용자의 응답을 AI가 판단하고 저장합니다.")
+    @Operation(
+            summary = "루틴 실행 AI 응답 확인",
+            description = """
+                    사용자의 응답을 AI가 판단하고 저장합니다.
+
+                    `clientExecutionId` 를 보내면 중복 요청이 방지됩니다. \
+                    네트워크 재전송 시에는 이 값과 요청 본문을 **모두 그대로** 다시 보내야 하며, \
+                    사용자가 답변을 수정해 다시 보낼 때는 **새 값**을 발급해야 합니다."""
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "판단 성공. 재전송이면 최초 결과를 그대로 반환합니다(AI 재호출 없음)."
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "409",
+                    description = """
+                            COMMON409 — 동일한 `clientExecutionId` 요청이 아직 처리 중입니다. 잠시 후 재시도하세요.
+
+                            COMMON410 — 동일한 `clientExecutionId` 로 다른 요청 본문이 전달되었습니다. \
+                            답변을 수정했다면 새 `clientExecutionId` 를 발급하세요."""
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "500",
+                    description = "ROUTINE5002 — AI 판단에 실패했습니다. 결과가 캐시되지 않으므로 같은 키로 재시도할 수 있습니다."
+            )
+    })
     @PostMapping("/ai-step")
     public ApiResponse<RoutineExecutionResponseDTO.AiResponseRes> judgeRoutineExecution(
             @AuthenticationPrincipal AuthenticatedMember member,

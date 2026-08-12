@@ -60,7 +60,20 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
 
     @Override
     public RoutineExecutionResponseDTO.AiResponseRes judgeUserResponse(Long memberId, RoutineExecutionRequestDTO.AiResponseReq req) {
+        return idempotencyService.execute(
+                "judge-user-response:" + req.routineId(),
+                memberId,
+                req.clientExecutionId(),
+                req,
+                RoutineExecutionResponseDTO.AiResponseRes.class,
+                () -> doJudgeUserResponse(memberId, req)
+        );
+    }
 
+    private RoutineExecutionResponseDTO.AiResponseRes doJudgeUserResponse(
+            Long memberId,
+            RoutineExecutionRequestDTO.AiResponseReq req
+    ) {
         Routine routine = routineRepository.findWithGroupById(req.routineId())
                 .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_NOT_FOUND));
 
@@ -70,6 +83,10 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
         }
 
         GeminiResponseDTO.AiJudgeResult dto = aiClient.judge(req.memberInput());
+
+        if (dto.failed()) {
+            throw new BusinessException(ErrorStatus.AI_JUDGE_FAILED);
+        }
 
         if(dto.shouldProceed()){
             RoutineExecution routineExecution = RoutineExecutionConverter.toEntity(req,routine,dto.aiResponse());
