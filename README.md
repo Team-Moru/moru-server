@@ -252,6 +252,7 @@ N+1 문제가 예상되는 연관관계 조회는 fetch join 또는 @EntityGraph
 ## 🗂️ 폴더 컨벤션
 프로젝트 구조는 MVVM 아키텍처와 도메인(기능) 중심으로 분리하여 관리합니다.
 
+```text
 moru-server
 ├─ src/main/java/com/moru/server
 │  ├─ MoruServerApplication.java
@@ -296,6 +297,7 @@ moru-server
 └─ docs
    ├─ DeploymentGate.md
    └─ ServerFoundation.md
+```
 
    
 ### 배포 파이프라인
