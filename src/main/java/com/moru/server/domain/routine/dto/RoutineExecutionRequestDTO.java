@@ -62,6 +62,20 @@ public record RoutineExecutionRequestDTO() {
             String memberInput,
 
             @Schema(description = "실제 기상 시간 (마지막 루틴만 전송)", example = "07:23")
-            LocalTime actualWakeTime
+            LocalTime actualWakeTime,
+
+            @Size(max = 100, message = "clientExecutionId는 100자 이하여야 합니다.")
+            @Schema(
+                    description = """
+                            중복 요청 방지 키. 네트워크 재전송 시 이 값과 요청 본문을 모두 그대로 보내면 \
+                            AI를 다시 호출하지 않고 최초 결과를 반환합니다. \
+                            앞선 동일 요청이 아직 처리 중이면 409(COMMON409)를 반환합니다. \
+                            사용자가 답변을 수정해 다시 보낼 때는 반드시 새 값을 발급해야 합니다 \
+                            (같은 값에 다른 본문이 오면 409(COMMON410)). \
+                            보내지 않으면 중복 방지 없이 매번 처리됩니다.""",
+                    example = "8f14e45f-ea8f-4c1b-b6d0-1a2b3c4d5e6f",
+                    nullable = true
+            )
+            String clientExecutionId
             ){}
 }
