@@ -71,6 +71,8 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             throw new BusinessException(ErrorStatus.ROUTINE_EMPTY);
         }
 
+        validateNoDuplicateClientEntityId(request.routines());
+
         List<List<String>> stepContents = buildStepContents(request.routines());
 
         RoutineGroup savedRoutineGroup = transactionTemplate.execute(status -> {
@@ -106,6 +108,18 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         return RoutineGroupConverter.toDetailResponse(savedRoutineGroup, request);
     }
 
+    private void validateNoDuplicateClientEntityId(List<RoutineGroupRequestDTO.RoutineRequest> routines) {
+        List<String> presentIds = routines.stream()
+                .map(RoutineGroupRequestDTO.RoutineRequest::clientEntityId)
+                .filter(id -> id != null && !id.isBlank())
+                .toList();
+
+        long distinctCount = presentIds.stream().distinct().count();
+
+        if (distinctCount != presentIds.size()) {
+            throw new BusinessException(ErrorStatus.DUPLICATE_CLIENT_ENTITY_ID);
+        }
+    }
     private List<Routine> createRoutines(
             List<RoutineGroupRequestDTO.RoutineRequest> routineRequests,
             List<List<String>> stepContents,
