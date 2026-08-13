@@ -61,7 +61,7 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
     @Override
     public RoutineExecutionResponseDTO.AiResponseRes judgeUserResponse(Long memberId, RoutineExecutionRequestDTO.AiResponseReq req) {
         return idempotencyService.execute(
-                "judge-user-response:" + req.routineId(),
+                "judge-user-response",
                 memberId,
                 req.clientExecutionId(),
                 req,
