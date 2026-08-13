@@ -10,6 +10,7 @@ import com.moru.server.domain.routine.entity.enums.RoutineType;
 import com.moru.server.domain.routine.repository.RoutineRepository;
 import com.moru.server.domain.routine.event.RoutineTtsCreatedEvent;
 import com.moru.server.domain.routine.service.command.AI.RoutineStepGenerator;
+import com.moru.server.domain.tts.entity.TTS;
 import com.moru.server.global.idempotency.IdempotencyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -77,11 +78,13 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         List<List<String>> stepContents = buildStepContents(request.routines());
 
         RoutineGroup savedRoutineGroup = transactionTemplate.execute(status -> {
-            // member 조회 + 검증을 트랜잭션 안으로 이동
             Member member = memberRepository.findByIdForUpdate(memberId)
                     .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
 
             validateNoAlarmDayConflict(memberId, request.alarmDays(), null);
+
+            TTS voice = member.getVoiceType();
+            String voiceName = (voice != null) ? voice.getGoogleVoiceName() : null;
 
             RoutineGroup routineGroup = RoutineGroup.builder()
                     .title(request.title())
@@ -99,7 +102,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
 
             for (Routine routine : saved.getRoutines()) {
                 for (RoutineTTS tts : routine.getTtsList()) {
-                    publishTtsEvent(tts);
+                    publishTtsEvent(tts, voiceName);
                 }
             }
 
@@ -179,7 +182,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
     }
 
 
-    private void publishTtsEvent(RoutineTTS tts) {
+    private void publishTtsEvent(RoutineTTS tts,String voiceName) {
         if (!TransactionSynchronizationManager.isActualTransactionActive()) {
             throw new IllegalStateException(
                     "TTS 이벤트는 트랜잭션 안에서 발행해야 한다. routineTtsId=" + tts.getId());
@@ -189,7 +192,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             tts.markFailed();
             return;
         }
-        eventPublisher.publishEvent(new RoutineTtsCreatedEvent(tts.getId()));
+        eventPublisher.publishEvent(new RoutineTtsCreatedEvent(tts.getId(),voiceName));
     }
 
 
@@ -307,9 +310,15 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
 
         List<String> stepContents = buildSingleStepContents(request);
 
-        Routine savedRoutine = transactionTemplate.execute(status -> {
-            routineGroupRepository.findByIdForUpdate(routineGroupId)
-                    .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
+            Routine savedRoutine = transactionTemplate.execute(status -> {
+                Member member = memberRepository.findByIdForUpdate(memberId)
+                        .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
+
+                TTS voice = member.getVoiceType();
+                String voiceName = (voice != null) ? voice.getGoogleVoiceName() : null;
+
+                routineGroupRepository.findByIdForUpdate(routineGroupId)
+                        .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
 
             int nextOrderIndex = routineRepository.findMaxOrderIndexByRoutineGroupId(routineGroupId)
                     .map(max -> max + 1)
@@ -326,9 +335,9 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
 
             Routine saved = routineRepository.save(routine);
 
-            for (RoutineTTS tts : saved.getTtsList()) {
-                publishTtsEvent(tts);
-            }
+                for (RoutineTTS tts : saved.getTtsList()) {
+                    publishTtsEvent(tts, voiceName);
+                }
 
             return saved;
         });
