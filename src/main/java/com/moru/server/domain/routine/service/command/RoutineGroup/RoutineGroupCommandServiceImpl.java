@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import com.moru.server.domain.member.entity.Member;
@@ -209,7 +210,6 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
                             .orElse(null);
 
                     if (routineGroup == null) {
-                        // 이미 삭제된 리소스인지 확인 - 내가 지운 거면 성공으로 처리
                         if (tombstoneService.wasDeletedBy("routine-group", routineGroupId, memberId)) {
                             return RoutineGroupConverter.toDeleteResponse(routineGroupId);
                         }
@@ -221,11 +221,35 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
                     }
 
                     routineGroupRepository.delete(routineGroup);
-                    tombstoneService.markDeleted("routine-group", routineGroupId, memberId);
+                    markDeletedAfterCommit("routine-group", routineGroupId, memberId);   // 변경
 
                     return RoutineGroupConverter.toDeleteResponse(routineGroupId);
                 })
         );
+    }
+
+    // 커밋 성공 이후에만 실행, Redis 장애가 나도 DB 삭제 자체엔 영향 없음
+    private void markDeletedAfterCommit(String resourceType, Long resourceId, Long ownerId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            // 트랜잭션 동기화가 안 걸려있는 상황(방어적 처리) - 즉시 시도
+            tryMarkDeleted(resourceType, resourceId, ownerId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                tryMarkDeleted(resourceType, resourceId, ownerId);
+            }
+        });
+    }
+
+    private void tryMarkDeleted(String resourceType, Long resourceId, Long ownerId) {
+        try {
+            tombstoneService.markDeleted(resourceType, resourceId, ownerId);
+        } catch (Exception e) {
+            // 실패해도 삭제 자체는 이미 커밋 완료된 상태라 무시
+            log.warn("[Tombstone] 삭제 기록 저장 실패 (best-effort). type={}, id={}", resourceType, resourceId, e);
+        }
     }
 
 
