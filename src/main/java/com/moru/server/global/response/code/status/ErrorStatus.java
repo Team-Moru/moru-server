@@ -54,6 +54,7 @@ public enum ErrorStatus implements BaseCode {
     ROUTINE_NOT_FOUND(HttpStatus.NOT_FOUND, "ROUTINE4004", "존재하지 않는 루틴입니다."),
     ACTIVE_ROUTINE_GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "ROUTINE4005", "사용 중인 루틴이 없습니다."),
     ROUTINE_ALARM_DAYS_CONFLICT(HttpStatus.CONFLICT, "ROUTINE4006", "이미 같은 요일에 활성화된 루틴 그룹이 있습니다."),
+    DUPLICATE_CLIENT_ENTITY_ID(HttpStatus.BAD_REQUEST, "ROUTINE4007", "clientEntityId는 요청 내에서 중복될 수 없습니다."),
     ROUTINE_STEP_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ROUTINE5001", "루틴 세부 단계 생성에 실패했습니다."),
 
 
