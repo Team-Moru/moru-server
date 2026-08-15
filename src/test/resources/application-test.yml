@@ -17,3 +17,11 @@ jwt:
   secret: moru-test-jwt-secret-key-must-be-at-least-32-bytes
   access-token-expiration: 1h
   refresh-token-expiration: 14d
+  
+google:
+  tts:
+    enabled: false
+
+aws:
+  s3:
+    enabled: false
