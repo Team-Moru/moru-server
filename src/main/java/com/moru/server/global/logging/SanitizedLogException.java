@@ -9,8 +9,7 @@ public final class SanitizedLogException extends RuntimeException {
     private static final int MAX_CAUSE_DEPTH = 8;
 
     private SanitizedLogException(Throwable source, Throwable sanitizedCause) {
-        super(source.getClass().getName(), sanitizedCause);
-        setStackTrace(source.getStackTrace());
+        super(source.getClass().getName(), sanitizedCause, false, false);
     }
 
     public static Throwable from(Throwable source) {

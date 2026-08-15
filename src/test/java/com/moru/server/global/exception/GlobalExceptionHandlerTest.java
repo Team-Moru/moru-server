@@ -89,7 +89,7 @@ class GlobalExceptionHandlerTest {
                     String stackTrace = ThrowableProxyUtil.asString(event.getThrowableProxy());
                     assertThat(stackTrace)
                             .contains(DataIntegrityViolationException.class.getName())
-                            .contains("logsTheSameErrorCodeAndStatusAsTheBadRequestResponse")
+                            .doesNotContain("logsTheSameErrorCodeAndStatusAsTheBadRequestResponse")
                             .doesNotContain("private database value");
                 });
     }
