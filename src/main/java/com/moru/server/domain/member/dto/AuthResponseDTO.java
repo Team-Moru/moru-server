@@ -50,8 +50,15 @@ public record AuthResponseDTO() {
     @Builder
     @Schema(description = "회원탈퇴 응답")
     public record WithdrawalResponse(
+            @Schema(description = "회원탈퇴 처리 상태", example = "COMPLETED")
+            WithdrawalStatus status,
+
             @Schema(description = "회원탈퇴 완료 메시지", example = "회원 탈퇴가 완료되었습니다.")
             String message
     ) {
+    }
+
+    public enum WithdrawalStatus {
+        COMPLETED
     }
 }
