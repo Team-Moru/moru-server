@@ -50,7 +50,13 @@ public class MemberCommandServiceImpl implements MemberCommandService {
 
         member.updateVoiceType(tts);
 
-        requestRegeneration(memberId, tts.getName(), member.getVoiceSelectionVersion());
+        if (!ttsEnabled) {
+            log.info("[TTS] 기능이 비활성화되어 재합성을 건너뜀. memberId={}", memberId);
+            return MemberConverter.toTtsUpdateResponse(member);
+        }
+
+        member.bumpVoiceSelectionVersion();
+        requestRegeneration(memberId, resolveVoiceName(tts), member.getVoiceSelectionVersion());
 
         return MemberConverter.toTtsUpdateResponse(member);
     }
@@ -60,12 +66,17 @@ public class MemberCommandServiceImpl implements MemberCommandService {
         return current != null && current.getId().equals(ttsId);
     }
 
-    private void requestRegeneration(Long memberId, String voiceName, Long voiceVersion) {
-        if (!ttsEnabled) {
-            // 처리할 워커가 없으므로 PENDING 으로 돌리면 영구히 멈춘다. 기존 음원을 그대로 둔다.
-            log.info("[TTS] 기능이 비활성화되어 재합성을 건너뜀. memberId={}", memberId);
-            return;
+    private String resolveVoiceName(TTS tts) {
+        String voiceName = tts.getGoogleVoiceName();
+        if (voiceName == null || voiceName.isBlank()) {
+            log.error("[TTS] 목소리 프리셋에 googleVoiceName 이 없어 재합성을 중단. ttsId={}, name={}",
+                    tts.getId(), tts.getName());
+            throw new BusinessException(ErrorStatus.TTS_VOICE_NAME_NOT_CONFIGURED);
         }
+        return voiceName;
+    }
+
+    private void requestRegeneration(Long memberId, String voiceName, Long voiceVersion) {
         if (!TransactionSynchronizationManager.isActualTransactionActive()) {
             throw new IllegalStateException(
                     "재합성 이벤트는 트랜잭션 안에서 발행해야 한다. memberId=" + memberId);

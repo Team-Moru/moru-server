@@ -70,6 +70,9 @@ public class Member extends BaseEntity {
 
     public void updateVoiceType(TTS voiceType) {
         this.voiceType = voiceType;
+    }
+
+    public void bumpVoiceSelectionVersion() {
         this.voiceSelectionVersion++;
     }
 }
