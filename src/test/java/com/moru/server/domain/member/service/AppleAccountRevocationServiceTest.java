@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
@@ -55,6 +56,6 @@ class AppleAccountRevocationServiceTest {
         revocationService.revokeIfRequired(1L, LoginType.GOOGLE);
 
         verify(credentialService, never()).findRefreshToken(1L);
-        verify(appleOAuthTokenClient, never()).revokeRefreshToken("apple-refresh-token");
+        verifyNoInteractions(appleOAuthTokenClient);
     }
 }

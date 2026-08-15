@@ -22,19 +22,36 @@ public class RedisDeletedResourceTombstoneService implements DeletedResourceTomb
 
     @Override
     public void markDeleted(String resourceType, Long resourceId, Long ownerId) {
-        String key = buildKey(resourceType, resourceId);
+        String key = buildKey(ownerId, resourceType, resourceId);
         redisTemplate.opsForValue().set(key, String.valueOf(ownerId), TOMBSTONE_TTL);
         keyRegistry.register(ownerId, key);
     }
 
     @Override
     public boolean wasDeletedBy(String resourceType, Long resourceId, Long ownerId) {
-        String key = buildKey(resourceType, resourceId);
+        String key = buildKey(ownerId, resourceType, resourceId);
         String storedOwnerId = redisTemplate.opsForValue().get(key);
-        return storedOwnerId != null && storedOwnerId.equals(String.valueOf(ownerId));
+        if (String.valueOf(ownerId).equals(storedOwnerId)) {
+            return true;
+        }
+
+        String legacyKey = buildLegacyKey(resourceType, resourceId);
+        String legacyOwnerId = redisTemplate.opsForValue().get(legacyKey);
+        if (!String.valueOf(ownerId).equals(legacyOwnerId)) {
+            return false;
+        }
+
+        redisTemplate.opsForValue().set(key, legacyOwnerId, TOMBSTONE_TTL);
+        keyRegistry.register(ownerId, key);
+        redisTemplate.delete(legacyKey);
+        return true;
     }
 
-    private String buildKey(String resourceType, Long resourceId) {
+    private String buildKey(Long ownerId, String resourceType, Long resourceId) {
+        return KEY_PREFIX + ownerId + ":" + resourceType + ":" + resourceId;
+    }
+
+    private String buildLegacyKey(String resourceType, Long resourceId) {
         return KEY_PREFIX + resourceType + ":" + resourceId;
     }
 }

@@ -27,6 +27,8 @@ public class MemberWithdrawalService {
     public AuthResponseDTO.WithdrawalResponse withdraw(Long memberId) {
         String lockToken = withdrawalLock.tryAcquire(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorStatus.WITHDRAWAL_IN_PROGRESS));
+        String socialIdentityLockToken = null;
+        MemberDeletionSnapshot lockedMemberData = null;
 
         try {
             Optional<MemberDeletionSnapshot> snapshot = snapshotReader.findByMemberId(memberId);
@@ -36,6 +38,10 @@ public class MemberWithdrawalService {
             }
 
             MemberDeletionSnapshot memberData = snapshot.get();
+            lockedMemberData = memberData;
+            socialIdentityLockToken = withdrawalLock
+                    .tryAcquireSocialIdentity(memberData.loginType(), memberData.oauthId())
+                    .orElseThrow(() -> new BusinessException(ErrorStatus.WITHDRAWAL_IN_PROGRESS));
             appleAccountRevocationService.revokeIfRequired(memberId, memberData.loginType());
             memberAssetDeletionService.deleteMemberAssets(
                     memberId,
@@ -46,6 +52,13 @@ public class MemberWithdrawalService {
             redisDataCleaner.clearMemberData(memberId);
             return completedResponse();
         } finally {
+            if (socialIdentityLockToken != null && lockedMemberData != null) {
+                withdrawalLock.releaseSocialIdentity(
+                        lockedMemberData.loginType(),
+                        lockedMemberData.oauthId(),
+                        socialIdentityLockToken
+                );
+            }
             withdrawalLock.release(memberId, lockToken);
         }
     }

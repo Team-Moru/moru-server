@@ -64,10 +64,26 @@ class MemberAssetDeletionServiceTest {
         S3Client s3Client = mock(S3Client.class);
         MemberAssetDeletionService service = new MemberAssetDeletionService(providerOf(s3Client), BUCKET, false);
 
-        service.deleteMemberAssets(1L, "profiles/profile.png", List.of("tts/audio.mp3"));
+        service.deleteMemberAssets(1L, null, List.of());
 
         verify(s3Client, never()).listObjectsV2(any(ListObjectsV2Request.class));
         verify(s3Client, never()).deleteObjects(any(DeleteObjectsRequest.class));
+    }
+
+    @Test
+    void rejectsWithdrawalWhenS3IsDisabledButMemberHasAssets() {
+        MemberAssetDeletionService service = new MemberAssetDeletionService(
+                providerOf(mock(S3Client.class)),
+                BUCKET,
+                false
+        );
+
+        assertThatThrownBy(() -> service.deleteMemberAssets(
+                1L,
+                "profiles/profile.png",
+                List.of("tts/audio.mp3")
+        )).isInstanceOfSatisfying(BusinessException.class, exception ->
+                assertThat(exception.getBaseCode()).isEqualTo(ErrorStatus.MEMBER_ASSET_DELETE_FAILED));
     }
 
     @Test

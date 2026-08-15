@@ -19,7 +19,7 @@ import lombok.RequiredArgsConstructor;
 public class MemberRedisDataCleaner {
 
     private static final String IDEMPOTENCY_PATTERN = "moru:idem:*:%d:*";
-    private static final String TOMBSTONE_PATTERN = "moru:deleted:*";
+    private static final String TOMBSTONE_PATTERN = "moru:deleted:%d:*";
 
     private final StringRedisTemplate redisTemplate;
     private final MemberRedisKeyRegistry keyRegistry;
@@ -35,27 +35,7 @@ public class MemberRedisDataCleaner {
         keyRegistry.deleteIndex(memberId);
 
         deleteKeys(scanKeys(IDEMPOTENCY_PATTERN.formatted(memberId)));
-        deleteLegacyTombstones(memberId);
-    }
-
-    private void deleteLegacyTombstones(Long memberId) {
-        List<String> tombstoneKeys = scanKeys(TOMBSTONE_PATTERN);
-        if (tombstoneKeys.isEmpty()) {
-            return;
-        }
-
-        List<String> owners = redisTemplate.opsForValue().multiGet(tombstoneKeys);
-        if (owners == null) {
-            return;
-        }
-
-        List<String> memberTombstones = new ArrayList<>();
-        for (int index = 0; index < tombstoneKeys.size(); index++) {
-            if (String.valueOf(memberId).equals(owners.get(index))) {
-                memberTombstones.add(tombstoneKeys.get(index));
-            }
-        }
-        deleteKeys(memberTombstones);
+        deleteKeys(scanKeys(TOMBSTONE_PATTERN.formatted(memberId)));
     }
 
     private List<String> scanKeys(String pattern) {

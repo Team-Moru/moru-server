@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -14,6 +15,7 @@ import static org.mockito.Mockito.when;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -32,8 +34,10 @@ import com.moru.server.domain.member.entity.enums.LoginType;
 import com.moru.server.domain.member.entity.enums.OAuthProvider;
 import com.moru.server.domain.member.entity.enums.Role;
 import com.moru.server.domain.member.repository.MemberRepository;
-import com.moru.server.domain.member.service.AppleOAuthCredentialService;
+import com.moru.server.domain.member.service.AppleMemberPersistenceService;
+import com.moru.server.domain.member.service.AppleMemberPersistenceService.AppleMemberResult;
 import com.moru.server.domain.member.service.MemberWithdrawalService;
+import com.moru.server.domain.member.service.MemberWithdrawalLock;
 import com.moru.server.global.exception.BusinessException;
 import com.moru.server.global.response.code.status.ErrorStatus;
 import com.moru.server.global.security.jwt.JwtTokenProvider;
@@ -61,16 +65,25 @@ class AuthCommandServiceImplTest {
     private AppleOAuthTokenClient appleOAuthTokenClient;
 
     @Mock
-    private AppleOAuthCredentialService appleOAuthCredentialService;
+    private AppleMemberPersistenceService appleMemberPersistenceService;
 
     @Mock
     private MemberWithdrawalService memberWithdrawalService;
+
+    @Mock
+    private MemberWithdrawalLock memberWithdrawalLock;
 
     @Mock
     private JwtTokenProvider jwtTokenProvider;
 
     @InjectMocks
     private AuthCommandServiceImpl authCommandService;
+
+    @BeforeEach
+    void setUpSocialIdentityLock() {
+        lenient().when(memberWithdrawalLock.tryAcquireSocialIdentity(any(), anyString()))
+                .thenReturn(Optional.of("social-lock-token"));
+    }
 
     @Test
     void reissuesTokenWhenStoredTokenMatches() {
@@ -146,6 +159,24 @@ class AuthCommandServiceImplTest {
     }
 
     @Test
+    void doesNotCreateSocialMemberWhileWithdrawalOwnsIdentityLock() {
+        when(googleOAuthClient.getMemberInfo("google-id-token"))
+                .thenReturn(new GoogleOAuthClient.GoogleMemberInfo("google-member-id", "모루"));
+        when(memberWithdrawalLock.tryAcquireSocialIdentity(LoginType.GOOGLE, "google-member-id"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authCommandService.loginWithSocial(
+                OAuthProvider.GOOGLE,
+                new AuthRequestDTO.SocialLoginRequest("google-id-token", null)
+        )).isInstanceOfSatisfying(BusinessException.class, exception ->
+                assertThat(exception.getBaseCode()).isEqualTo(ErrorStatus.WITHDRAWAL_IN_PROGRESS));
+
+        verify(memberRepository, never())
+                .findByLoginTypeAndOauthId(LoginType.GOOGLE, "google-member-id");
+        verify(refreshTokenStore, never()).save(any(), anyString(), any());
+    }
+
+    @Test
     void exchangesAndStoresAppleRefreshTokenBeforeIssuingServiceTokens() {
         Member member = Member.builder()
                 .id(1L)
@@ -160,8 +191,11 @@ class AuthCommandServiceImplTest {
                 .thenReturn(new AppleOAuthTokenClient.AppleTokens("apple-refresh-token", "exchanged-id-token"));
         when(appleOAuthClient.getMemberInfo("exchanged-id-token"))
                 .thenReturn(new AppleOAuthClient.AppleMemberInfo("apple-member-id", "moru@example.com"));
-        when(memberRepository.findByLoginTypeAndOauthId(LoginType.APPLE, "apple-member-id"))
-                .thenReturn(Optional.of(member));
+        when(appleMemberPersistenceService.findOrCreateAndSaveCredential(
+                "apple-member-id",
+                "moru@example.com",
+                "apple-refresh-token"
+        )).thenReturn(new AppleMemberResult(member, false));
         when(jwtTokenProvider.createAccessToken(1L, Role.MEMBER)).thenReturn("access-token");
         when(jwtTokenProvider.createRefreshToken(1L, Role.MEMBER)).thenReturn("refresh-token");
         when(jwtTokenProvider.getRefreshTokenExpiresAt("refresh-token"))
@@ -176,7 +210,11 @@ class AuthCommandServiceImplTest {
         );
 
         assertThat(response.memberId()).isEqualTo(1L);
-        verify(appleOAuthCredentialService).saveOrUpdate(1L, "apple-refresh-token");
+        verify(appleMemberPersistenceService).findOrCreateAndSaveCredential(
+                "apple-member-id",
+                "moru@example.com",
+                "apple-refresh-token"
+        );
     }
 
     @Test
@@ -197,7 +235,8 @@ class AuthCommandServiceImplTest {
         )).isInstanceOfSatisfying(BusinessException.class, exception ->
                 assertThat(exception.getBaseCode()).isEqualTo(ErrorStatus.INVALID_TOKEN));
 
-        verify(appleOAuthCredentialService, never()).saveOrUpdate(any(), anyString());
+        verify(appleMemberPersistenceService, never())
+                .findOrCreateAndSaveCredential(anyString(), any(), anyString());
     }
 
     @Test

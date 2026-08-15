@@ -45,6 +45,9 @@ public class MemberAssetDeletionService {
 
     public void deleteMemberAssets(Long memberId, String profileImageKey, Collection<String> ttsKeys) {
         if (!s3Enabled) {
+            if (StringUtils.hasText(profileImageKey) || (ttsKeys != null && !ttsKeys.isEmpty())) {
+                throw new BusinessException(ErrorStatus.MEMBER_ASSET_DELETE_FAILED);
+            }
             return;
         }
 

@@ -7,6 +7,7 @@ import java.time.Duration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -17,6 +18,7 @@ import org.testcontainers.utility.DockerImageName;
 
 import com.moru.server.global.redis.MemberRedisKeyRegistry;
 import com.moru.server.global.security.jwt.RedisRefreshTokenStore;
+import com.moru.server.global.idempotency.RedisDeletedResourceTombstoneService;
 
 @Testcontainers(disabledWithoutDocker = true)
 class MemberRedisLifecycleServiceTest {
@@ -56,6 +58,11 @@ class MemberRedisLifecycleServiceTest {
         withdrawalLock = new MemberWithdrawalLock(redisTemplate);
     }
 
+    @AfterEach
+    void tearDownLock() {
+        withdrawalLock.shutDownRenewalExecutor();
+    }
+
     @Test
     void clearsRegisteredAndLegacyMemberDataOnly() {
         Long memberId = 10L;
@@ -68,8 +75,8 @@ class MemberRedisLifecycleServiceTest {
 
         String legacyIdempotencyKey = "moru:idem:routine-create:10:request-id";
         redisTemplate.opsForValue().set(legacyIdempotencyKey, "cached-response");
-        String memberTombstone = "moru:deleted:routine:100";
-        String otherMemberTombstone = "moru:deleted:routine:200";
+        String memberTombstone = "moru:deleted:10:routine:100";
+        String otherMemberTombstone = "moru:deleted:20:routine:200";
         redisTemplate.opsForValue().set(memberTombstone, "10");
         redisTemplate.opsForValue().set(otherMemberTombstone, "20");
 
@@ -94,5 +101,37 @@ class MemberRedisLifecycleServiceTest {
 
         assertThat(withdrawalLock.isLocked(10L)).isFalse();
         assertThat(withdrawalLock.tryAcquire(10L)).isPresent();
+    }
+
+    @Test
+    void renewsWithdrawalLockUntilItIsReleased() throws InterruptedException {
+        withdrawalLock.shutDownRenewalExecutor();
+        withdrawalLock = new MemberWithdrawalLock(
+                redisTemplate,
+                Duration.ofMillis(300),
+                Duration.ofMillis(100)
+        );
+        String ownerToken = withdrawalLock.tryAcquire(10L).orElseThrow();
+
+        Thread.sleep(650);
+
+        assertThat(withdrawalLock.isLocked(10L)).isTrue();
+        withdrawalLock.release(10L, ownerToken);
+        assertThat(withdrawalLock.isLocked(10L)).isFalse();
+    }
+
+    @Test
+    void migratesLegacyTombstoneToMemberScopedKey() {
+        RedisDeletedResourceTombstoneService tombstoneService =
+                new RedisDeletedResourceTombstoneService(redisTemplate, keyRegistry);
+        redisTemplate.opsForValue().set("moru:deleted:routine:100", "10");
+
+        assertThat(tombstoneService.wasDeletedBy("routine", 100L, 10L)).isTrue();
+        assertThat(redisTemplate.hasKey("moru:deleted:routine:100")).isFalse();
+        assertThat(redisTemplate.hasKey("moru:deleted:10:routine:100")).isTrue();
+
+        cleaner.clearMemberData(10L);
+
+        assertThat(redisTemplate.hasKey("moru:deleted:10:routine:100")).isFalse();
     }
 }

@@ -6,6 +6,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -53,6 +54,8 @@ class MemberWithdrawalServiceTest {
         MemberDeletionSnapshot snapshot = snapshot(LoginType.APPLE);
         when(withdrawalLock.tryAcquire(1L)).thenReturn(Optional.of("lock-token"));
         when(snapshotReader.findByMemberId(1L)).thenReturn(Optional.of(snapshot));
+        when(withdrawalLock.tryAcquireSocialIdentity(LoginType.APPLE, "apple-oauth-id"))
+                .thenReturn(Optional.of("social-lock-token"));
 
         AuthResponseDTO.WithdrawalResponse response = withdrawalService.withdraw(1L);
 
@@ -67,11 +70,18 @@ class MemberWithdrawalServiceTest {
         );
         order.verify(withdrawalLock).tryAcquire(1L);
         order.verify(snapshotReader).findByMemberId(1L);
+        order.verify(withdrawalLock)
+                .tryAcquireSocialIdentity(LoginType.APPLE, "apple-oauth-id");
         order.verify(appleAccountRevocationService).revokeIfRequired(1L, LoginType.APPLE);
         order.verify(memberAssetDeletionService)
                 .deleteMemberAssets(1L, "profiles/profile.png", List.of("tts/audio.mp3"));
         order.verify(deletionTransactionService).deleteMemberData(1L);
         order.verify(redisDataCleaner).clearMemberData(1L);
+        order.verify(withdrawalLock).releaseSocialIdentity(
+                LoginType.APPLE,
+                "apple-oauth-id",
+                "social-lock-token"
+        );
         order.verify(withdrawalLock).release(1L, "lock-token");
     }
 
@@ -84,10 +94,11 @@ class MemberWithdrawalServiceTest {
 
         assertThat(response.status()).isEqualTo(AuthResponseDTO.WithdrawalStatus.COMPLETED);
         verify(redisDataCleaner).clearMemberData(1L);
-        verify(appleAccountRevocationService, never()).revokeIfRequired(1L, LoginType.APPLE);
-        verify(memberAssetDeletionService, never())
-                .deleteMemberAssets(1L, null, List.of());
-        verify(deletionTransactionService, never()).deleteMemberData(1L);
+        verifyNoInteractions(
+                appleAccountRevocationService,
+                memberAssetDeletionService,
+                deletionTransactionService
+        );
         verify(withdrawalLock).release(1L, "lock-token");
     }
 
@@ -103,9 +114,31 @@ class MemberWithdrawalServiceTest {
     }
 
     @Test
+    void doesNotStartDeletionWhileSocialLoginOwnsIdentityLock() {
+        when(withdrawalLock.tryAcquire(1L)).thenReturn(Optional.of("lock-token"));
+        when(snapshotReader.findByMemberId(1L)).thenReturn(Optional.of(snapshot(LoginType.APPLE)));
+        when(withdrawalLock.tryAcquireSocialIdentity(LoginType.APPLE, "apple-oauth-id"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> withdrawalService.withdraw(1L))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getBaseCode()).isEqualTo(ErrorStatus.WITHDRAWAL_IN_PROGRESS));
+
+        verifyNoInteractions(
+                appleAccountRevocationService,
+                memberAssetDeletionService,
+                deletionTransactionService,
+                redisDataCleaner
+        );
+        verify(withdrawalLock).release(1L, "lock-token");
+    }
+
+    @Test
     void doesNotDeleteFilesOrDatabaseWhenAppleRevokeFails() {
         when(withdrawalLock.tryAcquire(1L)).thenReturn(Optional.of("lock-token"));
         when(snapshotReader.findByMemberId(1L)).thenReturn(Optional.of(snapshot(LoginType.APPLE)));
+        when(withdrawalLock.tryAcquireSocialIdentity(LoginType.APPLE, "apple-oauth-id"))
+                .thenReturn(Optional.of("social-lock-token"));
         doThrow(new BusinessException(ErrorStatus.APPLE_REVOKE_FAILED))
                 .when(appleAccountRevocationService)
                 .revokeIfRequired(1L, LoginType.APPLE);
@@ -113,10 +146,12 @@ class MemberWithdrawalServiceTest {
         assertThatThrownBy(() -> withdrawalService.withdraw(1L))
                 .isInstanceOf(BusinessException.class);
 
-        verify(memberAssetDeletionService, never())
-                .deleteMemberAssets(1L, "profiles/profile.png", List.of("tts/audio.mp3"));
-        verify(deletionTransactionService, never()).deleteMemberData(1L);
-        verify(redisDataCleaner, never()).clearMemberData(1L);
+        verifyNoInteractions(memberAssetDeletionService, deletionTransactionService, redisDataCleaner);
+        verify(withdrawalLock).releaseSocialIdentity(
+                LoginType.APPLE,
+                "apple-oauth-id",
+                "social-lock-token"
+        );
         verify(withdrawalLock).release(1L, "lock-token");
     }
 
@@ -125,6 +160,8 @@ class MemberWithdrawalServiceTest {
         MemberDeletionSnapshot snapshot = snapshot(LoginType.GOOGLE);
         when(withdrawalLock.tryAcquire(1L)).thenReturn(Optional.of("lock-token"));
         when(snapshotReader.findByMemberId(1L)).thenReturn(Optional.of(snapshot));
+        when(withdrawalLock.tryAcquireSocialIdentity(LoginType.GOOGLE, "google-oauth-id"))
+                .thenReturn(Optional.of("social-lock-token"));
         doThrow(new BusinessException(ErrorStatus.MEMBER_ASSET_DELETE_FAILED))
                 .when(memberAssetDeletionService)
                 .deleteMemberAssets(1L, "profiles/profile.png", List.of("tts/audio.mp3"));
@@ -132,8 +169,12 @@ class MemberWithdrawalServiceTest {
         assertThatThrownBy(() -> withdrawalService.withdraw(1L))
                 .isInstanceOf(BusinessException.class);
 
-        verify(deletionTransactionService, never()).deleteMemberData(1L);
-        verify(redisDataCleaner, never()).clearMemberData(1L);
+        verifyNoInteractions(deletionTransactionService, redisDataCleaner);
+        verify(withdrawalLock).releaseSocialIdentity(
+                LoginType.GOOGLE,
+                "google-oauth-id",
+                "social-lock-token"
+        );
         verify(withdrawalLock).release(1L, "lock-token");
     }
 
@@ -141,6 +182,7 @@ class MemberWithdrawalServiceTest {
         return new MemberDeletionSnapshot(
                 1L,
                 loginType,
+                loginType.name().toLowerCase() + "-oauth-id",
                 "profiles/profile.png",
                 List.of("tts/audio.mp3")
         );

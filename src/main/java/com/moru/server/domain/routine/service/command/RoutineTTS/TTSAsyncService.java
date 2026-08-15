@@ -63,24 +63,23 @@ public class TTSAsyncService {
         log.info("[TTS] 백그라운드 작업 시작. routineTtsId={}, thread={}",
                 routineTtsId, Thread.currentThread().getName());
 
-        String sourceText = routineTTSRepository.findById(routineTtsId)
-                .map(RoutineTTS::getContent)
-                .orElse(null);
-        Long memberId = routineTTSRepository.findMemberIdByRoutineTtsId(routineTtsId);
-
-        if (sourceText == null || memberId == null) {
-            log.warn("[TTS] 대상 행이 없어 중단. routineTtsId={}", routineTtsId);
-            return;
-        }
-        if (memberWithdrawalLock.isLocked(memberId)) {
-            log.info("[TTS] 회원탈퇴 처리 중이므로 작업을 중단함. routineTtsId={}", routineTtsId);
-            markFailedQuietly(routineTtsId);
-            return;
-        }
-
         String uploadedKey = null;
 
         try {
+            String sourceText = routineTTSRepository.findById(routineTtsId)
+                    .map(RoutineTTS::getContent)
+                    .orElse(null);
+            Long memberId = routineTTSRepository.findMemberIdByRoutineTtsId(routineTtsId);
+
+            if (sourceText == null || memberId == null) {
+                log.warn("[TTS] 대상 행이 없어 중단. routineTtsId={}", routineTtsId);
+                return;
+            }
+            if (memberWithdrawalLock.isLocked(memberId)) {
+                log.info("[TTS] 회원탈퇴 처리 중이므로 작업을 중단함. routineTtsId={}", routineTtsId);
+                markFailedQuietly(routineTtsId);
+                return;
+            }
 
             GeminiResponseDTO.AiTtsResult ttsScript = aiClient.generateTtsScript(sourceText);
             byte[] audio = googleTtsClient.synthesize(ttsScript.ttsIntro(),voiceName);

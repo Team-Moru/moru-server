@@ -30,6 +30,7 @@ public class MemberDeletionSnapshotReader {
         return new MemberDeletionSnapshot(
                 member.getId(),
                 member.getLoginType(),
+                member.getOauthId(),
                 member.getProfileImageKey(),
                 List.copyOf(ttsKeys)
         );
@@ -38,6 +39,7 @@ public class MemberDeletionSnapshotReader {
     public record MemberDeletionSnapshot(
             Long memberId,
             LoginType loginType,
+            String oauthId,
             String profileImageKey,
             List<String> ttsKeys
     ) {

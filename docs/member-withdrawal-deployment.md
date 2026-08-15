@@ -39,16 +39,35 @@ AWS_S3_REGION=ap-northeast-2
 AWS_S3_BUCKET=moru-prod-assets-488230509502
 ```
 
-EC2에는 `moru-server-s3-role`을 연결하고 해당 Role에 다음 권한을 부여한다.
+EC2에는 `moru-server-s3-role`을 연결하고 버킷과 객체 권한을 구분하여 다음 정책을 부여한다.
 
-```text
-s3:ListBucket
-s3:PutObject
-s3:GetObject
-s3:DeleteObject
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::moru-prod-assets-488230509502",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": ["tts/*", "profiles/*"]
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
+      "Resource": [
+        "arn:aws:s3:::moru-prod-assets-488230509502/tts/*",
+        "arn:aws:s3:::moru-prod-assets-488230509502/profiles/*"
+      ]
+    }
+  ]
+}
 ```
 
-권한 범위는 `tts/*`, `profiles/*`로 제한한다. EC2 IAM Role을 사용하는 운영 환경에서는 `AWS_CREDENTIALS_ACCESS_KEY`, `AWS_CREDENTIALS_SECRET_KEY`를 비워 둔다.
+`s3:ListBucket`은 버킷 ARN에, 객체 조회·생성·삭제 권한은 객체 ARN에 적용한다. EC2 IAM Role을 사용하는 운영 환경에서는 `AWS_CREDENTIALS_ACCESS_KEY`, `AWS_CREDENTIALS_SECRET_KEY`를 비워 둔다.
 
 현재 삭제 구현은 버전 관리가 비활성화된 버킷을 기준으로 한다. 버킷 버전 관리가 활성화되어 있다면 출시 전에 모든 객체 버전과 삭제 마커를 제거하는 구현 및 다음 권한을 추가해야 한다.
 
@@ -65,6 +84,8 @@ s3:DeleteObjectVersion
 4. 애플리케이션 배포
 5. Apple 신규 로그인과 기존 회원 재로그인 확인
 6. 테스트 회원으로 회원탈퇴 실행
+
+기존 `moru:deleted:{resourceType}:{resourceId}` 형식의 Redis tombstone이 있다면 배포 작업에서 일회성 배치로 정리한다. 신규 tombstone은 `moru:deleted:{memberId}:{resourceType}:{resourceId}` 형식으로 저장되어 회원탈퇴 시 회원 prefix만 삭제된다.
 
 ## 5. 배포 후 확인
 
