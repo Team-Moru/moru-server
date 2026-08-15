@@ -47,6 +47,7 @@ public enum ErrorStatus implements BaseCode {
     INVALID_PROFILE_IMAGE_KEY(HttpStatus.BAD_REQUEST, "MEMBER4003", "유효하지 않은 프로필 이미지 키입니다."),
     MEMBER_FORBIDDEN(HttpStatus.FORBIDDEN, "MEMBER403", "해당 리소스에 접근할 권한이 없습니다."),
     MEMBER_ASSET_DELETE_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "MEMBER5001", "회원 파일 삭제에 실패했습니다."),
+    WITHDRAWAL_IN_PROGRESS(HttpStatus.CONFLICT, "MEMBER4091", "회원탈퇴가 이미 처리 중입니다."),
     // 서비스 약관 관련 에러
     TERM_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "약관을 찾을 수 없습니다."),
     REQUIRED_TERM_NOT_AGREED(HttpStatus.BAD_REQUEST, "T002", "필수 약관에 동의하지 않았습니다."),

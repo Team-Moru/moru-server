@@ -4,6 +4,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.moru.server.global.exception.BusinessException;
+import com.moru.server.global.redis.MemberRedisKeyRegistry;
 import com.moru.server.global.response.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ import java.util.function.Supplier;
 public class RedisIdempotencyService implements IdempotencyService {
 
     private final StringRedisTemplate redisTemplate;
+    private final MemberRedisKeyRegistry keyRegistry;
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
     private static final Duration PROCESSING_TTL = Duration.ofSeconds(60);
@@ -74,6 +76,7 @@ public class RedisIdempotencyService implements IdempotencyService {
         Envelope processing = new Envelope("PROCESSING", token, null, requestHash);
         Boolean isFirst = redisTemplate.opsForValue()
                 .setIfAbsent(redisKey, writeJson(processing), PROCESSING_TTL);
+        keyRegistry.register(memberId, redisKey);
 
         if (Boolean.FALSE.equals(isFirst)) {
             Envelope existing = readJson(redisTemplate.opsForValue().get(redisKey));
