@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moru.server.domain.routine.entity.RoutineTTS;
 import com.moru.server.global.config.GeminiRoutineProperties;
 import com.moru.server.global.exception.BusinessException;
+import com.moru.server.global.logging.SanitizedLogException;
 import com.moru.server.global.response.code.status.ErrorStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -62,8 +63,8 @@ public class GeminiRoutineStepGenerator implements RoutineStepGenerator {
                 .retrieve()
                 .body(Map.class);
 
-        if (response ==null){
-            throw stepGenerationFailed("Gemini 응답 본문이 비어 있습니다.");
+        if (response == null) {
+            throw stepGenerationFailed(FailureReason.EMPTY_RESPONSE_BODY);
         }
 
         return parseResponse(response, timerRoutineTitles.size());
@@ -129,29 +130,31 @@ public class GeminiRoutineStepGenerator implements RoutineStepGenerator {
     private List<List<String>> parseResponse(Map<String, Object> response, int expectedSize) {
         List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
         if (candidates == null || candidates.isEmpty()) {
-            throw stepGenerationFailed("Gemini 응답에 candidates가 없습니다(안전 필터 거부 가능). response=" + response);
+            throw stepGenerationFailed(FailureReason.MISSING_CANDIDATES);
         }
 
         Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
         if (content == null) {
-            throw stepGenerationFailed("Gemini 응답에 content가 없습니다.");
+            throw stepGenerationFailed(FailureReason.MISSING_CONTENT);
         }
 
         List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
         if (parts == null || parts.isEmpty()) {
-            throw stepGenerationFailed("Gemini 응답에 parts가 없습니다.");
+            throw stepGenerationFailed(FailureReason.MISSING_PARTS);
         }
 
         String jsonText = (String) parts.get(0).get("text");
         if (jsonText == null) {
-            throw stepGenerationFailed("Gemini 응답에 text가 없습니다.");
+            throw stepGenerationFailed(FailureReason.MISSING_TEXT);
         }
 
         Map<String, Object> parsed;
         try {
             parsed = objectMapper.readValue(jsonText, Map.class);
         } catch (Exception e) {
-            log.error("AI step 응답 JSON 파싱 실패 - jsonText={}", jsonText, e);
+            log.error("AI step 응답 JSON 파싱 실패. exceptionType={}",
+                    e.getClass().getSimpleName(),
+                    SanitizedLogException.from(e));
             throw new BusinessException(ErrorStatus.ROUTINE_STEP_GENERATION_FAILED);
         }
 
@@ -203,8 +206,16 @@ public class GeminiRoutineStepGenerator implements RoutineStepGenerator {
         return normalized;
     }
 
-    private BusinessException stepGenerationFailed(String detail) {
-        log.error("루틴 step 생성 실패 - {}", detail);
+    private BusinessException stepGenerationFailed(FailureReason reason) {
+        log.error("루틴 step 생성 실패. reason={}", reason);
         return new BusinessException(ErrorStatus.ROUTINE_STEP_GENERATION_FAILED);
+    }
+
+    private enum FailureReason {
+        EMPTY_RESPONSE_BODY,
+        MISSING_CANDIDATES,
+        MISSING_CONTENT,
+        MISSING_PARTS,
+        MISSING_TEXT
     }
 }
