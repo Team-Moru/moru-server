@@ -16,9 +16,34 @@ spring:
   data:
     redis:
       url: ${REDIS_URL:redis://localhost:6379}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:2s}
+      timeout: ${REDIS_COMMAND_TIMEOUT:2s}
 
 server:
   port: ${SERVER_PORT:8080}
 
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] requestId=%X{requestId:-N/A} %logger{36} - %msg%n"
+
 dev-auth:
   secret: ${DEV_AUTH_SECRET:}
+
+assets:
+  public-base-url: ${PUBLIC_ASSET_BASE_URL:}
+
+security:
+  apple-token:
+    encryption-key: ${APPLE_TOKEN_ENCRYPTION_KEY:}
+  apple-withdrawal:
+    allow-missing-credential: ${APPLE_WITHDRAWAL_ALLOW_MISSING_CREDENTIAL:false}
+
+member:
+  withdrawal-lock:
+    ttl: ${MEMBER_WITHDRAWAL_LOCK_TTL:60s}
+    renew-interval: ${MEMBER_WITHDRAWAL_LOCK_RENEW_INTERVAL:20s}
+    renewal-pool-size: ${MEMBER_WITHDRAWAL_LOCK_RENEWAL_POOL_SIZE:4}
+
+aws:
+  s3:
+    enabled: ${AWS_S3_ENABLED:false}

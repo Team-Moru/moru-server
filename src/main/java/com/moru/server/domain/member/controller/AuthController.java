@@ -105,8 +105,23 @@ public class AuthController {
               "code": "COMMON200",
               "message": "성공입니다.",
               "result": {
+                "status": "COMPLETED",
                 "message": "회원 탈퇴가 완료되었습니다."
               }
+            }
+            """;
+    private static final String WITHDRAWAL_IN_PROGRESS_EXAMPLE = """
+            {
+              "isSuccess": false,
+              "code": "MEMBER4091",
+              "message": "회원탈퇴가 이미 처리 중입니다."
+            }
+            """;
+    private static final String APPLE_REAUTH_REQUIRED_EXAMPLE = """
+            {
+              "isSuccess": false,
+              "code": "AUTH4091",
+              "message": "회원탈퇴를 위해 Apple 재로그인이 필요합니다."
             }
             """;
     private static final String UNAUTHORIZED_EXAMPLE = """
@@ -299,6 +314,17 @@ public class AuthController {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(value = UNAUTHORIZED_EXAMPLE)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "409",
+                    description = "탈퇴 처리 중 또는 Apple 재인증 필요",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(name = "처리 중", value = WITHDRAWAL_IN_PROGRESS_EXAMPLE),
+                                    @ExampleObject(name = "Apple 재인증 필요", value = APPLE_REAUTH_REQUIRED_EXAMPLE)
+                            }
                     )
             )
     })

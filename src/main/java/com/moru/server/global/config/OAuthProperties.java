@@ -35,9 +35,29 @@ public class OAuthProperties {
         private String issuer = "https://appleid.apple.com";
         private String jwksUri = "https://appleid.apple.com/auth/keys";
         private String audience = "";
+        private String clientId = "";
+        private String teamId = "";
+        private String keyId = "";
+        private String privateKey = "";
+        private String tokenUri = "https://appleid.apple.com/auth/token";
+        private String revokeUri = "https://appleid.apple.com/auth/revoke";
 
         public boolean hasAudience() {
-            return StringUtils.hasText(audience);
+            return StringUtils.hasText(resolveClientId());
+        }
+
+        public String resolveClientId() {
+            if (StringUtils.hasText(clientId)) {
+                return clientId;
+            }
+            return audience;
+        }
+
+        public boolean hasTokenApiConfig() {
+            return StringUtils.hasText(resolveClientId())
+                    && StringUtils.hasText(teamId)
+                    && StringUtils.hasText(keyId)
+                    && StringUtils.hasText(privateKey);
         }
     }
 }
