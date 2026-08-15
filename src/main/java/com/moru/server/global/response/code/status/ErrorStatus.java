@@ -36,12 +36,19 @@ public enum ErrorStatus implements BaseCode {
     ACCESS_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH4013", "Access Token이 만료되었습니다."),
     INVALID_SOCIAL_PROVIDER(HttpStatus.BAD_REQUEST, "AUTH4014", "지원하지 않는 소셜 로그인 제공자입니다."),
     OAUTH_CONFIG_MISSING(HttpStatus.INTERNAL_SERVER_ERROR, "AUTH5001", "OAuth 설정값이 누락되었습니다."),
+    APPLE_AUTHORIZATION_CODE_INVALID(HttpStatus.UNAUTHORIZED, "AUTH4017", "Apple 인가 코드가 유효하지 않습니다."),
+    APPLE_OAUTH_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AUTH5002", "Apple 인증 서버를 일시적으로 사용할 수 없습니다."),
+    APPLE_REVOKE_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "AUTH5003", "Apple 계정 연결 해제에 실패했습니다."),
+    APPLE_CREDENTIAL_INVALID(HttpStatus.INTERNAL_SERVER_ERROR, "AUTH5004", "Apple 인증정보를 처리할 수 없습니다."),
+    APPLE_REAUTH_REQUIRED(HttpStatus.CONFLICT, "AUTH4091", "회원탈퇴를 위해 Apple 재로그인이 필요합니다."),
 
     // 멤버 관련 에러
     MEMBER_NOT_FOUND(HttpStatus.BAD_REQUEST, "MEMBER4001", "사용자가 없습니다."),
     ALREADY_WITHDRAWN_MEMBER(HttpStatus.BAD_REQUEST, "MEMBER4002", "이미 탈퇴한 회원입니다."),
     INVALID_PROFILE_IMAGE_KEY(HttpStatus.BAD_REQUEST, "MEMBER4003", "유효하지 않은 프로필 이미지 키입니다."),
     MEMBER_FORBIDDEN(HttpStatus.FORBIDDEN, "MEMBER403", "해당 리소스에 접근할 권한이 없습니다."),
+    MEMBER_ASSET_DELETE_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "MEMBER5001", "회원 파일 삭제에 실패했습니다."),
+    WITHDRAWAL_IN_PROGRESS(HttpStatus.CONFLICT, "MEMBER4091", "회원탈퇴가 이미 처리 중입니다."),
     // 서비스 약관 관련 에러
     TERM_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "약관을 찾을 수 없습니다."),
     REQUIRED_TERM_NOT_AGREED(HttpStatus.BAD_REQUEST, "T002", "필수 약관에 동의하지 않았습니다."),

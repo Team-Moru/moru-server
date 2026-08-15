@@ -6,25 +6,25 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
-import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import com.moru.server.domain.member.client.AppleOAuthClient;
+import com.moru.server.domain.member.client.AppleOAuthTokenClient;
 import com.moru.server.domain.member.client.GoogleOAuthClient;
 import com.moru.server.domain.member.client.KakaoOAuthClient;
 import com.moru.server.domain.member.dto.AuthRequestDTO;
@@ -34,9 +34,10 @@ import com.moru.server.domain.member.entity.enums.LoginType;
 import com.moru.server.domain.member.entity.enums.OAuthProvider;
 import com.moru.server.domain.member.entity.enums.Role;
 import com.moru.server.domain.member.repository.MemberRepository;
-import com.moru.server.domain.member.repository.MemberTermRepository;
-import com.moru.server.domain.routine.repository.RoutineGroupRepository;
-import com.moru.server.domain.subscriptions.repository.SubscriptionsRepository;
+import com.moru.server.domain.member.service.AppleMemberPersistenceService;
+import com.moru.server.domain.member.service.AppleMemberPersistenceService.AppleMemberResult;
+import com.moru.server.domain.member.service.MemberWithdrawalService;
+import com.moru.server.domain.member.service.MemberWithdrawalLock;
 import com.moru.server.global.exception.BusinessException;
 import com.moru.server.global.response.code.status.ErrorStatus;
 import com.moru.server.global.security.jwt.JwtTokenProvider;
@@ -52,15 +53,6 @@ class AuthCommandServiceImplTest {
     private RefreshTokenStore refreshTokenStore;
 
     @Mock
-    private MemberTermRepository memberTermRepository;
-
-    @Mock
-    private RoutineGroupRepository routineGroupRepository;
-
-    @Mock
-    private SubscriptionsRepository subscriptionsRepository;
-
-    @Mock
     private KakaoOAuthClient kakaoOAuthClient;
 
     @Mock
@@ -70,10 +62,28 @@ class AuthCommandServiceImplTest {
     private AppleOAuthClient appleOAuthClient;
 
     @Mock
+    private AppleOAuthTokenClient appleOAuthTokenClient;
+
+    @Mock
+    private AppleMemberPersistenceService appleMemberPersistenceService;
+
+    @Mock
+    private MemberWithdrawalService memberWithdrawalService;
+
+    @Mock
+    private MemberWithdrawalLock memberWithdrawalLock;
+
+    @Mock
     private JwtTokenProvider jwtTokenProvider;
 
     @InjectMocks
     private AuthCommandServiceImpl authCommandService;
+
+    @BeforeEach
+    void setUpSocialIdentityLock() {
+        lenient().when(memberWithdrawalLock.tryAcquireSocialIdentity(any(), anyString()))
+                .thenReturn(Optional.of("social-lock-token"));
+    }
 
     @Test
     void reissuesTokenWhenStoredTokenMatches() {
@@ -149,45 +159,98 @@ class AuthCommandServiceImplTest {
     }
 
     @Test
-    void deletesRedisRefreshTokenAfterMemberDeletionIsFlushed() {
-        Long memberId = 1L;
-        Member member = Member.builder()
-                .id(memberId)
-                .oauthId("google-member-id")
-                .nickname("모루")
-                .role(Role.MEMBER)
-                .loginType(LoginType.GOOGLE)
-                .build();
-        when(memberRepository.findById(memberId)).thenReturn(Optional.of(member));
-        when(routineGroupRepository.findAllByMember_Id(memberId)).thenReturn(List.of());
+    void doesNotCreateSocialMemberWhileWithdrawalOwnsIdentityLock() {
+        when(googleOAuthClient.getMemberInfo("google-id-token"))
+                .thenReturn(new GoogleOAuthClient.GoogleMemberInfo("google-member-id", "모루"));
+        when(memberWithdrawalLock.tryAcquireSocialIdentity(LoginType.GOOGLE, "google-member-id"))
+                .thenReturn(Optional.empty());
 
-        authCommandService.withdraw(memberId);
+        assertThatThrownBy(() -> authCommandService.loginWithSocial(
+                OAuthProvider.GOOGLE,
+                new AuthRequestDTO.SocialLoginRequest("google-id-token", null)
+        )).isInstanceOfSatisfying(BusinessException.class, exception ->
+                assertThat(exception.getBaseCode()).isEqualTo(ErrorStatus.WITHDRAWAL_IN_PROGRESS));
 
-        InOrder inOrder = inOrder(memberRepository, refreshTokenStore);
-        inOrder.verify(memberRepository).delete(member);
-        inOrder.verify(memberRepository).flush();
-        inOrder.verify(refreshTokenStore).deleteByMemberId(memberId);
+        verify(memberRepository, never())
+                .findByLoginTypeAndOauthId(LoginType.GOOGLE, "google-member-id");
+        verify(refreshTokenStore, never()).save(any(), anyString(), any());
     }
 
     @Test
-    void doesNotDeleteRedisRefreshTokenWhenDatabaseDeletionFails() {
-        Long memberId = 1L;
+    void exchangesAndStoresAppleRefreshTokenBeforeIssuingServiceTokens() {
         Member member = Member.builder()
-                .id(memberId)
-                .oauthId("google-member-id")
-                .nickname("모루")
+                .id(1L)
+                .oauthId("apple-member-id")
+                .nickname("moru@example.com")
                 .role(Role.MEMBER)
-                .loginType(LoginType.GOOGLE)
+                .loginType(LoginType.APPLE)
                 .build();
-        when(memberRepository.findById(memberId)).thenReturn(Optional.of(member));
-        when(routineGroupRepository.findAllByMember_Id(memberId)).thenReturn(List.of());
-        doThrow(new DataIntegrityViolationException("member deletion failed"))
-                .when(memberRepository)
-                .flush();
+        when(appleOAuthClient.getMemberInfo("apple-identity-token"))
+                .thenReturn(new AppleOAuthClient.AppleMemberInfo("apple-member-id", "moru@example.com"));
+        when(appleOAuthTokenClient.exchangeAuthorizationCode("apple-authorization-code"))
+                .thenReturn(new AppleOAuthTokenClient.AppleTokens("apple-refresh-token", "exchanged-id-token"));
+        when(appleOAuthClient.getMemberInfo("exchanged-id-token"))
+                .thenReturn(new AppleOAuthClient.AppleMemberInfo("apple-member-id", "moru@example.com"));
+        when(appleMemberPersistenceService.findOrCreateAndSaveCredential(
+                "apple-member-id",
+                "moru@example.com",
+                "apple-refresh-token"
+        )).thenReturn(new AppleMemberResult(member, false));
+        when(jwtTokenProvider.createAccessToken(1L, Role.MEMBER)).thenReturn("access-token");
+        when(jwtTokenProvider.createRefreshToken(1L, Role.MEMBER)).thenReturn("refresh-token");
+        when(jwtTokenProvider.getRefreshTokenExpiresAt("refresh-token"))
+                .thenReturn(LocalDateTime.now().plusDays(14));
 
-        assertThatThrownBy(() -> authCommandService.withdraw(memberId))
-                .isInstanceOf(DataIntegrityViolationException.class);
+        AuthResponseDTO.SocialLoginResponse response = authCommandService.loginWithSocial(
+                OAuthProvider.APPLE,
+                new AuthRequestDTO.SocialLoginRequest(
+                        "apple-identity-token",
+                        "apple-authorization-code"
+                )
+        );
 
-        verify(refreshTokenStore, never()).deleteByMemberId(memberId);
+        assertThat(response.memberId()).isEqualTo(1L);
+        verify(appleMemberPersistenceService).findOrCreateAndSaveCredential(
+                "apple-member-id",
+                "moru@example.com",
+                "apple-refresh-token"
+        );
+    }
+
+    @Test
+    void rejectsAppleLoginWhenAuthorizationCodeBelongsToAnotherMember() {
+        when(appleOAuthClient.getMemberInfo("apple-identity-token"))
+                .thenReturn(new AppleOAuthClient.AppleMemberInfo("apple-member-id", "moru@example.com"));
+        when(appleOAuthTokenClient.exchangeAuthorizationCode("apple-authorization-code"))
+                .thenReturn(new AppleOAuthTokenClient.AppleTokens("apple-refresh-token", "exchanged-id-token"));
+        when(appleOAuthClient.getMemberInfo("exchanged-id-token"))
+                .thenReturn(new AppleOAuthClient.AppleMemberInfo("different-member-id", "other@example.com"));
+
+        assertThatThrownBy(() -> authCommandService.loginWithSocial(
+                OAuthProvider.APPLE,
+                new AuthRequestDTO.SocialLoginRequest(
+                        "apple-identity-token",
+                        "apple-authorization-code"
+                )
+        )).isInstanceOfSatisfying(BusinessException.class, exception ->
+                assertThat(exception.getBaseCode()).isEqualTo(ErrorStatus.INVALID_TOKEN));
+
+        verify(appleMemberPersistenceService, never())
+                .findOrCreateAndSaveCredential(anyString(), any(), anyString());
+    }
+
+    @Test
+    void delegatesWithdrawalToMemberWithdrawalService() {
+        Long memberId = 1L;
+        AuthResponseDTO.WithdrawalResponse expected = AuthResponseDTO.WithdrawalResponse.builder()
+                .status(AuthResponseDTO.WithdrawalStatus.COMPLETED)
+                .message("회원 탈퇴가 완료되었습니다.")
+                .build();
+        when(memberWithdrawalService.withdraw(memberId)).thenReturn(expected);
+
+        AuthResponseDTO.WithdrawalResponse actual = authCommandService.withdraw(memberId);
+
+        assertThat(actual).isEqualTo(expected);
+        verify(memberWithdrawalService).withdraw(memberId);
     }
 }

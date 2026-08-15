@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.moru.server.domain.member.client.AppleOAuthClient;
+import com.moru.server.domain.member.client.AppleOAuthTokenClient;
 import com.moru.server.domain.member.client.GoogleOAuthClient;
 import com.moru.server.domain.member.client.KakaoOAuthClient;
 import com.moru.server.domain.member.dto.AuthRequestDTO;
@@ -25,9 +26,10 @@ import com.moru.server.domain.member.entity.enums.LoginType;
 import com.moru.server.domain.member.entity.enums.OAuthProvider;
 import com.moru.server.domain.member.entity.enums.Role;
 import com.moru.server.domain.member.repository.MemberRepository;
-import com.moru.server.domain.member.repository.MemberTermRepository;
-import com.moru.server.domain.routine.repository.RoutineGroupRepository;
-import com.moru.server.domain.subscriptions.repository.SubscriptionsRepository;
+import com.moru.server.domain.member.service.AppleMemberPersistenceService;
+import com.moru.server.domain.member.service.AppleMemberPersistenceService.AppleMemberResult;
+import com.moru.server.domain.member.service.MemberWithdrawalService;
+import com.moru.server.domain.member.service.MemberWithdrawalLock;
 import com.moru.server.global.exception.BusinessException;
 import com.moru.server.global.response.code.status.ErrorStatus;
 import com.moru.server.global.security.jwt.JwtTokenProvider;
@@ -40,28 +42,33 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     private static final String TOKEN_TYPE = "Bearer";
     private static final String DEFAULT_DEV_NICKNAME = "테스트회원";
     private static final LoginType DEFAULT_DEV_LOGIN_TYPE = LoginType.KAKAO;
-    private static final String WITHDRAWAL_COMPLETE_MESSAGE = "회원 탈퇴가 완료되었습니다.";
     private static final String REFRESH_TOKEN_HASH_ALGORITHM = "SHA-256";
 
     private final MemberRepository memberRepository;
-    private final MemberTermRepository memberTermRepository;
     private final RefreshTokenStore refreshTokenStore;
-    private final RoutineGroupRepository routineGroupRepository;
-    private final SubscriptionsRepository subscriptionsRepository;
     private final KakaoOAuthClient kakaoOAuthClient;
     private final GoogleOAuthClient googleOAuthClient;
     private final AppleOAuthClient appleOAuthClient;
+    private final AppleOAuthTokenClient appleOAuthTokenClient;
+    private final AppleMemberPersistenceService appleMemberPersistenceService;
+    private final MemberWithdrawalService memberWithdrawalService;
+    private final MemberWithdrawalLock memberWithdrawalLock;
     private final JwtTokenProvider jwtTokenProvider;
 
     @Override
     public AuthResponseDTO.TokenResponse issueDevToken(AuthRequestDTO.DevTokenRequest request) {
-        Member member = findOrCreateMember(
+        return executeWithSocialIdentityLock(
                 DEFAULT_DEV_LOGIN_TYPE,
                 request.oauthId(),
-                () -> createDevMember(request)
-        ).member();
-
-        return issueTokenResponse(member);
+                () -> {
+                    Member member = findOrCreateMember(
+                            DEFAULT_DEV_LOGIN_TYPE,
+                            request.oauthId(),
+                            () -> createDevMember(request)
+                    ).member();
+                    return issueTokenResponse(member);
+                }
+        );
     }
 
     @Override
@@ -117,31 +124,89 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     private AuthResponseDTO.SocialLoginResponse loginWithKakao(AuthRequestDTO.SocialLoginRequest request) {
         KakaoOAuthClient.KakaoMemberInfo kakaoMemberInfo = kakaoOAuthClient.getMemberInfo(request.token());
 
-        return loginOrCreateMember(
+        return executeWithSocialIdentityLock(
+                LoginType.KAKAO,
                 kakaoMemberInfo.oauthId(),
-                kakaoMemberInfo.nickname(),
-                LoginType.KAKAO
+                () -> loginOrCreateMember(
+                        kakaoMemberInfo.oauthId(),
+                        kakaoMemberInfo.nickname(),
+                        LoginType.KAKAO
+                )
         );
     }
 
     private AuthResponseDTO.SocialLoginResponse loginWithGoogle(AuthRequestDTO.SocialLoginRequest request) {
         GoogleOAuthClient.GoogleMemberInfo googleMemberInfo = googleOAuthClient.getMemberInfo(request.token());
 
-        return loginOrCreateMember(
+        return executeWithSocialIdentityLock(
+                LoginType.GOOGLE,
                 googleMemberInfo.oauthId(),
-                googleMemberInfo.nickname(),
-                LoginType.GOOGLE
+                () -> loginOrCreateMember(
+                        googleMemberInfo.oauthId(),
+                        googleMemberInfo.nickname(),
+                        LoginType.GOOGLE
+                )
         );
     }
 
     private AuthResponseDTO.SocialLoginResponse loginWithApple(AuthRequestDTO.SocialLoginRequest request) {
+        validateAppleAuthorizationCode(request.authorizationCode());
         AppleOAuthClient.AppleMemberInfo appleMemberInfo = appleOAuthClient.getMemberInfo(request.token());
+        AppleOAuthTokenClient.AppleTokens appleTokens =
+                appleOAuthTokenClient.exchangeAuthorizationCode(request.authorizationCode());
+        AppleOAuthClient.AppleMemberInfo exchangedTokenMemberInfo =
+                appleOAuthClient.getMemberInfo(appleTokens.idToken());
 
-        return loginOrCreateMember(
+        if (!appleMemberInfo.oauthId().equals(exchangedTokenMemberInfo.oauthId())) {
+            throw new BusinessException(ErrorStatus.INVALID_TOKEN);
+        }
+
+        return executeWithSocialIdentityLock(
+                LoginType.APPLE,
                 appleMemberInfo.oauthId(),
-                appleMemberInfo.nickname(),
-                LoginType.APPLE
+                () -> {
+                    AppleMemberResult result = persistAppleMember(
+                            appleMemberInfo.oauthId(),
+                            appleMemberInfo.nickname(),
+                            appleTokens.refreshToken()
+                    );
+                    return createSocialLoginResponse(result.member(), result.isNewMember());
+                }
         );
+    }
+
+    private AppleMemberResult persistAppleMember(
+            String oauthId,
+            String nickname,
+            String refreshToken
+    ) {
+        try {
+            return appleMemberPersistenceService.findOrCreateAndSaveCredential(
+                    oauthId,
+                    nickname,
+                    refreshToken
+            );
+        } catch (DataIntegrityViolationException exception) {
+            return appleMemberPersistenceService.findOrCreateAndSaveCredential(
+                    oauthId,
+                    nickname,
+                    refreshToken
+            );
+        }
+    }
+
+    private <T> T executeWithSocialIdentityLock(
+            LoginType loginType,
+            String oauthId,
+            Supplier<T> operation
+    ) {
+        String lockToken = memberWithdrawalLock.tryAcquireSocialIdentity(loginType, oauthId)
+                .orElseThrow(() -> new BusinessException(ErrorStatus.WITHDRAWAL_IN_PROGRESS));
+        try {
+            return operation.get();
+        } finally {
+            memberWithdrawalLock.releaseSocialIdentity(loginType, oauthId, lockToken);
+        }
     }
 
     private AuthResponseDTO.SocialLoginResponse loginOrCreateMember(
@@ -203,25 +268,8 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     }
 
     @Override
-    @Transactional
     public AuthResponseDTO.WithdrawalResponse withdraw(Long memberId) {
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
-
-        deleteMemberRelatedData(memberId);
-        memberRepository.delete(member);
-        memberRepository.flush();
-        refreshTokenStore.deleteByMemberId(memberId);
-
-        return AuthResponseDTO.WithdrawalResponse.builder()
-                .message(WITHDRAWAL_COMPLETE_MESSAGE)
-                .build();
-    }
-
-    private void deleteMemberRelatedData(Long memberId) {
-        routineGroupRepository.deleteAll(routineGroupRepository.findAllByMember_Id(memberId));
-        subscriptionsRepository.deleteAllByMember_Id(memberId);
-        memberTermRepository.deleteAllByMember_Id(memberId);
+        return memberWithdrawalService.withdraw(memberId);
     }
 
     private AuthResponseDTO.SocialLoginResponse createSocialLoginResponse(Member member, boolean isNewMember) {
@@ -276,6 +324,12 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     private void validateRefreshTokenRequired(String refreshToken) {
         if (!StringUtils.hasText(refreshToken)) {
             throw new BusinessException(ErrorStatus.TOKEN_MISSING);
+        }
+    }
+
+    private void validateAppleAuthorizationCode(String authorizationCode) {
+        if (!StringUtils.hasText(authorizationCode)) {
+            throw new BusinessException(ErrorStatus.APPLE_AUTHORIZATION_CODE_INVALID);
         }
     }
 

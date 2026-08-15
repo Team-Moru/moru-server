@@ -117,9 +117,7 @@ public class GeminiRoutineGroupAiGenerator implements RoutineGroupAiGenerator {
         List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
 
         if (candidates == null || candidates.isEmpty()) {
-            throw new IllegalStateException(
-                    "Gemini 응답에 candidates가 없습니다. 안전 필터에 의해 거부되었을 수 있습니다. response=" + response
-            );
+            throw new IllegalStateException("Gemini 응답에 candidates가 없습니다.");
         }
 
         Map<String, Object> firstCandidate = candidates.get(0);
@@ -145,7 +143,7 @@ public class GeminiRoutineGroupAiGenerator implements RoutineGroupAiGenerator {
         try {
             return objectMapper.readValue(jsonText, RoutineGroupAiGenerateResponseDTO.class);
         } catch (Exception e) {
-            throw new IllegalStateException("AI 응답 JSON 파싱에 실패했습니다. jsonText=" + jsonText, e);
+            throw new IllegalStateException("AI 응답 JSON 파싱에 실패했습니다.", e);
         }
     }
 }

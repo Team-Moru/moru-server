@@ -46,4 +46,17 @@ public interface RoutineTTSRepository extends JpaRepository<RoutineTTS, Long> {
         where t.id = :routineTtsId
     """)
     Optional<Long> findCurrentVoiceVersion(@Param("routineTtsId") Long routineTtsId);
+
+    @Query("""
+        select t.s3Url from RoutineTTS t
+        where t.routine.routineGroup.member.id = :memberId
+          and t.s3Url is not null
+    """)
+    List<String> findS3KeysByMemberId(@Param("memberId") Long memberId);
+
+    @Query("""
+        select t.routine.routineGroup.member.id from RoutineTTS t
+        where t.id = :routineTtsId
+    """)
+    Long findMemberIdByRoutineTtsId(@Param("routineTtsId") Long routineTtsId);
 }
