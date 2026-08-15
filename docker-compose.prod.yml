@@ -5,6 +5,8 @@ x-awslogs: &awslogs
     awslogs-group: ${CLOUDWATCH_LOG_GROUP:-/moru/prod/app}
     awslogs-create-group: "false"
     tag: "{{.Name}}/{{.ID}}"
+    mode: "non-blocking"
+    max-buffer-size: "${CLOUDWATCH_LOG_BUFFER_SIZE:-4m}"
 
 services:
   app:

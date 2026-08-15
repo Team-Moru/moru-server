@@ -168,7 +168,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Object> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
 
-        logInternalError("data_integrity", ex);
+        logHandledException("data_integrity", ErrorStatus.BAD_REQUEST, ex);
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -189,7 +189,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(BeanCreationException.class)
     public ResponseEntity<Object> handleBeanCreationException(BeanCreationException ex) {
 
-        logInternalError("bean_creation", ex);
+        logHandledException("bean_creation", ErrorStatus.INTERNAL_SERVER_ERROR, ex);
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -199,7 +199,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ClassCastException.class)
     public ResponseEntity<Object> handleClassCastException(ClassCastException ex) {
 
-        logInternalError("class_cast", ex);
+        logHandledException("class_cast", ErrorStatus.INTERNAL_SERVER_ERROR, ex);
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -209,7 +209,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(HttpMessageConversionException.class)
     public ResponseEntity<Object> handleHttpMessageConversionException(HttpMessageConversionException ex) {
 
-        logInternalError("message_conversion", ex);
+        logHandledException("message_conversion", ErrorStatus.INTERNAL_SERVER_ERROR, ex);
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -219,7 +219,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(IncorrectResultSizeDataAccessException.class)
     public ResponseEntity<Object> handleIncorrectResultSizeException(IncorrectResultSizeDataAccessException ex) {
 
-        logInternalError("incorrect_result_size", ex);
+        logHandledException("incorrect_result_size", ErrorStatus.BAD_REQUEST, ex);
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -229,7 +229,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(InvalidDataAccessApiUsageException.class)
     public ResponseEntity<Object> handleInvalidDataAccessApiUsageException(InvalidDataAccessApiUsageException ex) {
 
-        logInternalError("invalid_data_access", ex);
+        logHandledException("invalid_data_access", ErrorStatus.BAD_REQUEST, ex);
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -239,7 +239,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(JpaSystemException.class)
     public ResponseEntity<Object> handleJpaSystemException(JpaSystemException ex) {
 
-        logInternalError("jpa_system", ex);
+        logHandledException("jpa_system", ErrorStatus.INTERNAL_SERVER_ERROR, ex);
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -260,7 +260,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(NullPointerException.class)
     public ResponseEntity<Object> handleNullPointerException(NullPointerException ex) {
 
-        logInternalError("null_pointer", ex);
+        logHandledException("null_pointer", ErrorStatus.INTERNAL_SERVER_ERROR, ex);
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -270,7 +270,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(UnsatisfiedDependencyException.class)
     public ResponseEntity<Object> handleUnsatisfiedDependencyException(UnsatisfiedDependencyException ex) {
 
-        logInternalError("unsatisfied_dependency", ex);
+        logHandledException("unsatisfied_dependency", ErrorStatus.INTERNAL_SERVER_ERROR, ex);
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -280,17 +280,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleAllException(Exception ex) {
 
-        logInternalError("unhandled", ex);
+        logHandledException("unhandled", ErrorStatus.INTERNAL_SERVER_ERROR, ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.onFailure(ErrorStatus.INTERNAL_SERVER_ERROR));
     }
 
-    private void logInternalError(String category, Exception ex) {
-        log.error("Internal request failure. category={}, code={}, status={}, exceptionType={}",
+    private void logHandledException(String category, BaseCode responseCode, Exception ex) {
+        log.error("Request failure. category={}, code={}, status={}, exceptionType={}",
                 category,
-                ErrorStatus.INTERNAL_SERVER_ERROR.getCode(),
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                responseCode.getCode(),
+                responseCode.getHttpStatus().value(),
                 ex.getClass().getSimpleName());
     }
 }

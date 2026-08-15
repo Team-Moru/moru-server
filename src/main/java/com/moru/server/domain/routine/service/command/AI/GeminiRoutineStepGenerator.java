@@ -62,8 +62,8 @@ public class GeminiRoutineStepGenerator implements RoutineStepGenerator {
                 .retrieve()
                 .body(Map.class);
 
-        if (response ==null){
-            throw stepGenerationFailed("Gemini 응답 본문이 비어 있습니다.");
+        if (response == null) {
+            throw stepGenerationFailed(FailureReason.EMPTY_RESPONSE_BODY);
         }
 
         return parseResponse(response, timerRoutineTitles.size());
@@ -129,22 +129,22 @@ public class GeminiRoutineStepGenerator implements RoutineStepGenerator {
     private List<List<String>> parseResponse(Map<String, Object> response, int expectedSize) {
         List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
         if (candidates == null || candidates.isEmpty()) {
-            throw stepGenerationFailed("missing_candidates");
+            throw stepGenerationFailed(FailureReason.MISSING_CANDIDATES);
         }
 
         Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
         if (content == null) {
-            throw stepGenerationFailed("missing_content");
+            throw stepGenerationFailed(FailureReason.MISSING_CONTENT);
         }
 
         List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
         if (parts == null || parts.isEmpty()) {
-            throw stepGenerationFailed("missing_parts");
+            throw stepGenerationFailed(FailureReason.MISSING_PARTS);
         }
 
         String jsonText = (String) parts.get(0).get("text");
         if (jsonText == null) {
-            throw stepGenerationFailed("missing_text");
+            throw stepGenerationFailed(FailureReason.MISSING_TEXT);
         }
 
         Map<String, Object> parsed;
@@ -204,8 +204,16 @@ public class GeminiRoutineStepGenerator implements RoutineStepGenerator {
         return normalized;
     }
 
-    private BusinessException stepGenerationFailed(String reason) {
+    private BusinessException stepGenerationFailed(FailureReason reason) {
         log.error("루틴 step 생성 실패. reason={}", reason);
         return new BusinessException(ErrorStatus.ROUTINE_STEP_GENERATION_FAILED);
+    }
+
+    private enum FailureReason {
+        EMPTY_RESPONSE_BODY,
+        MISSING_CANDIDATES,
+        MISSING_CONTENT,
+        MISSING_PARTS,
+        MISSING_TEXT
     }
 }

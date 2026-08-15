@@ -2,8 +2,13 @@ package com.moru.server.global.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanCreationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -54,5 +59,31 @@ class GlobalExceptionHandlerTest {
         assertThat(body.getCode()).isEqualTo(ErrorStatus.INTERNAL_SERVER_ERROR.getCode());
         assertThat(body.getMessage()).isEqualTo(ErrorStatus.INTERNAL_SERVER_ERROR.getMessage());
         assertThat(body.getResult()).isNull();
+    }
+
+    @Test
+    void logsTheSameErrorCodeAndStatusAsTheBadRequestResponse() {
+        Logger logger = (Logger) LoggerFactory.getLogger(GlobalExceptionHandler.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            handler.handleDataIntegrityViolationException(
+                    new DataIntegrityViolationException("private database value")
+            );
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+
+        assertThat(appender.list)
+                .extracting(ILoggingEvent::getFormattedMessage)
+                .anySatisfy(message -> {
+                    assertThat(message).contains("category=data_integrity");
+                    assertThat(message).contains("code=COMMON400");
+                    assertThat(message).contains("status=400");
+                    assertThat(message).doesNotContain("COMMON500", "private database value");
+                });
     }
 }
