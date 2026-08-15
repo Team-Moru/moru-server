@@ -39,6 +39,7 @@ public enum ErrorStatus implements BaseCode {
     APPLE_AUTHORIZATION_CODE_INVALID(HttpStatus.UNAUTHORIZED, "AUTH4017", "Apple 인가 코드가 유효하지 않습니다."),
     APPLE_OAUTH_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AUTH5002", "Apple 인증 서버를 일시적으로 사용할 수 없습니다."),
     APPLE_REVOKE_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "AUTH5003", "Apple 계정 연결 해제에 실패했습니다."),
+    APPLE_CREDENTIAL_INVALID(HttpStatus.INTERNAL_SERVER_ERROR, "AUTH5004", "Apple 인증정보를 처리할 수 없습니다."),
 
     // 멤버 관련 에러
     MEMBER_NOT_FOUND(HttpStatus.BAD_REQUEST, "MEMBER4001", "사용자가 없습니다."),

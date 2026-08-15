@@ -22,3 +22,7 @@ server:
 
 dev-auth:
   secret: ${DEV_AUTH_SECRET:}
+
+security:
+  apple-token:
+    encryption-key: ${APPLE_TOKEN_ENCRYPTION_KEY:}
