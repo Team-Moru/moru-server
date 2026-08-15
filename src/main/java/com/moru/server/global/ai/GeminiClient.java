@@ -69,7 +69,8 @@ public class GeminiClient implements AiClient{
             return objectMapper.readValue(jsonText, GeminiResponseDTO.AiJudgeResult.class);
 
         } catch (Exception e) {
-            log.error("Gemini 호출 실패, fallback 반환", e);
+            log.error("Gemini 호출 실패, fallback 반환. exceptionType={}",
+                    e.getClass().getSimpleName());
             return GeminiResponseDTO.AiJudgeResult.builder()
                     .shouldProceed(false)
                     .aiResponse("현재 AI응답을 불러올 수 없습니다. 잠시 후 다시 시도해 주세요")
@@ -107,7 +108,8 @@ public class GeminiClient implements AiClient{
             return objectMapper.readValue(jsonText, GeminiResponseDTO.AiTtsResult.class);
 
         } catch (Exception e) {
-            log.error("Gemini TTS 멘트 생성 실패, fallback 반환", e);
+            log.error("Gemini TTS 멘트 생성 실패, fallback 반환. exceptionType={}",
+                    e.getClass().getSimpleName());
 
             // API 호출 실패 시 기본 텍스트 반환 (Fallback)
             return GeminiResponseDTO.AiTtsResult.builder()

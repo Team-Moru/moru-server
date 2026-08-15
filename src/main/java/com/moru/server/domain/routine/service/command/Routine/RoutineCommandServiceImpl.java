@@ -76,7 +76,8 @@ public class RoutineCommandServiceImpl implements RoutineCommandService {
         try {
             tombstoneService.markDeleted(resourceType, resourceId, ownerId);
         } catch (Exception e) {
-            log.warn("[Tombstone] 삭제 기록 저장 실패 (best-effort). type={}, id={}", resourceType, resourceId, e);
+            log.warn("[Tombstone] 삭제 기록 저장 실패 (best-effort). type={}, exceptionType={}",
+                    resourceType, e.getClass().getSimpleName());
         }
     }
 }

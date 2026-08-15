@@ -41,7 +41,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleAuthorizationDenied(
             AuthorizationDeniedException ex
     ) {
-        log.warn("Authorization denied: {}", ex.getMessage());
+        log.warn("Request rejected. code={}, status={}",
+                ErrorStatus.FORBIDDEN.getCode(), ErrorStatus.FORBIDDEN.getHttpStatus().value());
 
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
@@ -52,7 +53,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(
             AccessDeniedException ex
     ) {
-        log.warn("Access denied: {}", ex.getMessage());
+        log.warn("Request rejected. code={}, status={}",
+                ErrorStatus.FORBIDDEN.getCode(), ErrorStatus.FORBIDDEN.getHttpStatus().value());
 
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
@@ -63,8 +65,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ApiResponse<Object>> globalExceptionHandler(GlobalException ex) {
 
         BaseCode baseCode = ex.getBaseCode();
-        log.error("GlobalException occurred: code={}, message={}",
-                baseCode.getCode(), baseCode.getMessage());
+        log.warn("Request failed. code={}, status={}",
+                baseCode.getCode(), baseCode.getHttpStatus().value());
 
         return ResponseEntity
                 .status(baseCode.getHttpStatus())
@@ -75,8 +77,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ApiResponse<Object>> businessExceptionHandler(BusinessException ex) {
 
         BaseCode baseCode = ex.getBaseCode();
-        log.error("BusinessException occurred: code={}, message={}",
-                baseCode.getCode(), baseCode.getMessage());
+        log.warn("Request failed. code={}, status={}",
+                baseCode.getCode(), baseCode.getHttpStatus().value());
 
         return ResponseEntity
                 .status(baseCode.getHttpStatus())
@@ -97,7 +99,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                 ? fieldError.getDefaultMessage() : "Invalid value",
                         (existing, replacement) -> existing + ", " + replacement
                 ));
-        log.warn("Validation failed: {}", errors);
+        log.warn("Request validation failed. code={}, status={}, errorCount={}",
+                ErrorStatus.BAD_REQUEST.getCode(), HttpStatus.BAD_REQUEST.value(), errors.size());
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -115,7 +118,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                         ConstraintViolation::getMessage,
                         (existing, replacement) -> existing + ", " + replacement
                 ));
-        log.warn("Constraint violation: {}", errors);
+        log.warn("Request constraint violation. code={}, status={}, errorCount={}",
+                ErrorStatus.BAD_REQUEST.getCode(), HttpStatus.BAD_REQUEST.value(), errors.size());
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -127,7 +131,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     protected ResponseEntity<Object> handleMissingServletRequestParameter(
             MissingServletRequestParameterException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
 
-        log.warn("Missing request parameter: {}", ex.getParameterName());
+        log.warn("Required request parameter missing. code={}, status={}",
+                ErrorStatus.BAD_REQUEST.getCode(), HttpStatus.BAD_REQUEST.value());
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -138,7 +143,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<Object> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException ex) {
 
-        log.warn("Type mismatch for parameter: {}", ex.getName());
+        log.warn("Request parameter type mismatch. code={}, status={}",
+                ErrorStatus.BAD_REQUEST.getCode(), HttpStatus.BAD_REQUEST.value());
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -150,7 +156,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     protected ResponseEntity<Object> handleHttpMessageNotReadable(
             HttpMessageNotReadableException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
 
-        log.warn("Invalid JSON format: {}", ex.getMessage());
+        log.warn("Request body parsing failed. code={}, status={}",
+                ErrorStatus.BAD_REQUEST.getCode(), HttpStatus.BAD_REQUEST.value());
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -161,7 +168,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Object> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
 
-        log.error("Data integrity violation occurred", ex);
+        logInternalError("data_integrity", ex);
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -171,91 +178,119 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Object> handleIllegalArgumentException(IllegalArgumentException ex) {
 
-        log.warn("Illegal argument: {}", ex.getMessage());
+        log.warn("Illegal request argument. code={}, status={}",
+                ErrorStatus.BAD_REQUEST.getCode(), HttpStatus.BAD_REQUEST.value());
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.onFailure(ErrorStatus.BAD_REQUEST, ex.getMessage()));
+                .body(ApiResponse.onFailure(ErrorStatus.BAD_REQUEST));
     }
 
     @ExceptionHandler(BeanCreationException.class)
     public ResponseEntity<Object> handleBeanCreationException(BeanCreationException ex) {
 
+        logInternalError("bean_creation", ex);
+
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.onFailure(ErrorStatus.INTERNAL_SERVER_ERROR, ex.getMessage()));
+                .body(ApiResponse.onFailure(ErrorStatus.INTERNAL_SERVER_ERROR));
     }
 
     @ExceptionHandler(ClassCastException.class)
     public ResponseEntity<Object> handleClassCastException(ClassCastException ex) {
 
+        logInternalError("class_cast", ex);
+
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.onFailure(ErrorStatus.INTERNAL_SERVER_ERROR, ex.getMessage()));
+                .body(ApiResponse.onFailure(ErrorStatus.INTERNAL_SERVER_ERROR));
     }
 
     @ExceptionHandler(HttpMessageConversionException.class)
     public ResponseEntity<Object> handleHttpMessageConversionException(HttpMessageConversionException ex) {
 
+        logInternalError("message_conversion", ex);
+
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.onFailure(ErrorStatus.INTERNAL_SERVER_ERROR, ex.getMessage()));
+                .body(ApiResponse.onFailure(ErrorStatus.INTERNAL_SERVER_ERROR));
     }
 
     @ExceptionHandler(IncorrectResultSizeDataAccessException.class)
     public ResponseEntity<Object> handleIncorrectResultSizeException(IncorrectResultSizeDataAccessException ex) {
 
+        logInternalError("incorrect_result_size", ex);
+
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.onFailure(ErrorStatus.BAD_REQUEST, ex.getMessage()));
+                .body(ApiResponse.onFailure(ErrorStatus.BAD_REQUEST));
     }
 
     @ExceptionHandler(InvalidDataAccessApiUsageException.class)
     public ResponseEntity<Object> handleInvalidDataAccessApiUsageException(InvalidDataAccessApiUsageException ex) {
 
+        logInternalError("invalid_data_access", ex);
+
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.onFailure(ErrorStatus.BAD_REQUEST, ex.getMessage()));
+                .body(ApiResponse.onFailure(ErrorStatus.BAD_REQUEST));
     }
 
     @ExceptionHandler(JpaSystemException.class)
     public ResponseEntity<Object> handleJpaSystemException(JpaSystemException ex) {
 
+        logInternalError("jpa_system", ex);
+
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.onFailure(ErrorStatus.INTERNAL_SERVER_ERROR, ex.getMessage()));
+                .body(ApiResponse.onFailure(ErrorStatus.INTERNAL_SERVER_ERROR));
     }
 
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<Object> handleNoSuchElementException(NoSuchElementException ex) {
 
+        log.warn("Requested element not found. code={}, status={}",
+                ErrorStatus.BAD_REQUEST.getCode(), HttpStatus.BAD_REQUEST.value());
+
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.onFailure(ErrorStatus.BAD_REQUEST, ex.getMessage()));
+                .body(ApiResponse.onFailure(ErrorStatus.BAD_REQUEST));
     }
 
     @ExceptionHandler(NullPointerException.class)
     public ResponseEntity<Object> handleNullPointerException(NullPointerException ex) {
 
+        logInternalError("null_pointer", ex);
+
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.onFailure(ErrorStatus.INTERNAL_SERVER_ERROR, ex.getMessage()));
+                .body(ApiResponse.onFailure(ErrorStatus.INTERNAL_SERVER_ERROR));
     }
 
     @ExceptionHandler(UnsatisfiedDependencyException.class)
     public ResponseEntity<Object> handleUnsatisfiedDependencyException(UnsatisfiedDependencyException ex) {
 
+        logInternalError("unsatisfied_dependency", ex);
+
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.onFailure(ErrorStatus.INTERNAL_SERVER_ERROR, ex.getMessage()));
+                .body(ApiResponse.onFailure(ErrorStatus.INTERNAL_SERVER_ERROR));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleAllException(Exception ex) {
 
-        log.error("Unhandled exception occurred", ex);
+        logInternalError("unhandled", ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.onFailure(ErrorStatus.INTERNAL_SERVER_ERROR));
+    }
+
+    private void logInternalError(String category, Exception ex) {
+        log.error("Internal request failure. category={}, code={}, status={}, exceptionType={}",
+                category,
+                ErrorStatus.INTERNAL_SERVER_ERROR.getCode(),
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                ex.getClass().getSimpleName());
     }
 }

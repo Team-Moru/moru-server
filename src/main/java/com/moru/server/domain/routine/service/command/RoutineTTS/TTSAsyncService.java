@@ -49,22 +49,22 @@ public class TTSAsyncService {
         try {
             ttsExecutor.execute(() -> synthesizeAndUpload(routineTtsId,voiceName));
         } catch (RejectedExecutionException e) {
-            log.error("[TTS] 스레드풀 포화로 작업이 거절됨. routineTtsId={}", routineTtsId, e);
+            log.error("[TTS] 스레드풀 포화로 작업이 거절됨. exceptionType={}",
+                    e.getClass().getSimpleName());
             markFailedQuietly(routineTtsId);
         }
     }
 
     private void synthesizeAndUpload(Long routineTtsId,String voiceName) {
 
-        log.info("[TTS] 백그라운드 작업 시작. routineTtsId={}, thread={}",
-                routineTtsId, Thread.currentThread().getName());
+        log.info("[TTS] 백그라운드 작업 시작");
 
         String sourceText = routineTTSRepository.findById(routineTtsId)
                 .map(RoutineTTS::getContent)
                 .orElse(null);
 
         if (sourceText == null) {
-            log.warn("[TTS] 대상 행이 없어 중단. routineTtsId={}", routineTtsId);
+            log.warn("[TTS] 대상 행이 없어 중단");
             return;
         }
 
@@ -80,16 +80,17 @@ public class TTSAsyncService {
             uploadedKey = key;
 
             RoutineTTS entity = routineTTSRepository.findById(routineTtsId)
-                    .orElseThrow(() -> new IllegalStateException("RoutineTTS 행 없음: " + routineTtsId));
+                    .orElseThrow(() -> new IllegalStateException("RoutineTTS 행이 없습니다."));
 
             entity.markCompleted(key, ttsScript.ttsIntro(), ttsScript.ttsDone());
             routineTTSRepository.save(entity);
 
-            log.info("[TTS] 완료. routineTtsId={}, key={}, {} bytes", routineTtsId, key, audio.length);
+            log.info("[TTS] 생성 및 업로드 완료");
 
         } catch (Exception e) {
 
-            log.error("[TTS] 실패. routineTtsId={}", routineTtsId, e);
+            log.error("[TTS] 생성 또는 업로드 실패. exceptionType={}",
+                    e.getClass().getSimpleName());
             deleteQuietly(uploadedKey);
             markFailedQuietly(routineTtsId);
         }
@@ -101,9 +102,10 @@ public class TTSAsyncService {
         }
         try {
             s3Uploader.delete(key);
-            log.info("[TTS] 실패로 업로드된 객체를 삭제함. key={}", key);
+            log.info("[TTS] 실패로 업로드된 객체를 삭제함");
         } catch (Exception e) {
-            log.error("[TTS] 업로드된 객체 삭제 실패. key={}", key, e);
+            log.error("[TTS] 업로드된 객체 삭제 실패. exceptionType={}",
+                    e.getClass().getSimpleName());
         }
     }
 
@@ -114,7 +116,8 @@ public class TTSAsyncService {
                 routineTTSRepository.save(entity);
             });
         } catch (Exception e) {
-            log.error("[TTS] 실패 상태 기록조차 실패. routineTtsId={}", routineTtsId, e);
+            log.error("[TTS] 실패 상태 기록조차 실패. exceptionType={}",
+                    e.getClass().getSimpleName());
         }
     }
 }
