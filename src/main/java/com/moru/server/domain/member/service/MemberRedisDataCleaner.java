@@ -18,7 +18,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MemberRedisDataCleaner {
 
-    private static final String IDEMPOTENCY_PATTERN = "moru:idem:*:%d:*";
     private static final String TOMBSTONE_PATTERN = "moru:deleted:%d:*";
 
     private final StringRedisTemplate redisTemplate;
@@ -34,7 +33,6 @@ public class MemberRedisDataCleaner {
         }
         keyRegistry.deleteIndex(memberId);
 
-        deleteKeys(scanKeys(IDEMPOTENCY_PATTERN.formatted(memberId)));
         deleteKeys(scanKeys(TOMBSTONE_PATTERN.formatted(memberId)));
     }
 

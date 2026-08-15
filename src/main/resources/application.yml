@@ -26,6 +26,8 @@ dev-auth:
 security:
   apple-token:
     encryption-key: ${APPLE_TOKEN_ENCRYPTION_KEY:}
+  apple-withdrawal:
+    allow-missing-credential: ${APPLE_WITHDRAWAL_ALLOW_MISSING_CREDENTIAL:false}
 
 aws:
   s3:

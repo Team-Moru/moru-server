@@ -1,6 +1,7 @@
 package com.moru.server.domain.member.client;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Set;
+
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
@@ -10,6 +11,9 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moru.server.global.config.OAuthProperties;
 import com.moru.server.global.exception.BusinessException;
 import com.moru.server.global.response.code.status.ErrorStatus;
@@ -19,6 +23,8 @@ public class AppleOAuthTokenClient {
 
     private static final String GRANT_TYPE_AUTHORIZATION_CODE = "authorization_code";
     private static final String TOKEN_TYPE_HINT_REFRESH_TOKEN = "refresh_token";
+    private static final Set<String> ALREADY_REVOKED_ERRORS = Set.of("invalid_token", "invalid_grant");
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final RestClient restClient;
     private final OAuthProperties oauthProperties;
@@ -82,8 +88,25 @@ public class AppleOAuthTokenClient {
                     .body(form)
                     .retrieve()
                     .toBodilessEntity();
+        } catch (HttpClientErrorException exception) {
+            if (isAlreadyRevoked(exception)) {
+                return;
+            }
+            throw new BusinessException(ErrorStatus.APPLE_REVOKE_FAILED);
         } catch (RestClientException exception) {
             throw new BusinessException(ErrorStatus.APPLE_REVOKE_FAILED);
+        }
+    }
+
+    private boolean isAlreadyRevoked(HttpClientErrorException exception) {
+        try {
+            AppleErrorResponse response = OBJECT_MAPPER.readValue(
+                    exception.getResponseBodyAsString(),
+                    AppleErrorResponse.class
+            );
+            return response != null && ALREADY_REVOKED_ERRORS.contains(response.error());
+        } catch (Exception ignored) {
+            return false;
         }
     }
 
@@ -97,6 +120,12 @@ public class AppleOAuthTokenClient {
     public record AppleTokenResponse(
             @JsonProperty("refresh_token") String refreshToken,
             @JsonProperty("id_token") String idToken
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record AppleErrorResponse(
+            @JsonProperty("error") String error
     ) {
     }
 

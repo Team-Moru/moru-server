@@ -43,3 +43,5 @@ oauth:
 security:
   apple-token:
     encryption-key: {APPLE_TOKEN_ENCRYPTION_KEY}
+  apple-withdrawal:
+    allow-missing-credential: false

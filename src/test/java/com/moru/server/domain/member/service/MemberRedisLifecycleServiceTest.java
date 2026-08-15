@@ -64,17 +64,18 @@ class MemberRedisLifecycleServiceTest {
     }
 
     @Test
-    void clearsRegisteredAndLegacyMemberDataOnly() {
+    void clearsRegisteredMemberDataWithoutDeletingAmbiguousOtherMemberKey() {
         Long memberId = 10L;
         RedisRefreshTokenStore refreshTokenStore = new RedisRefreshTokenStore(redisTemplate);
         refreshTokenStore.save(memberId, "refresh-hash", Duration.ofMinutes(10));
 
-        String registeredKey = "moru:member-cache:10";
+        String registeredKey = "moru:idem:create-routine-group:10:request-id";
         redisTemplate.opsForValue().set(registeredKey, "cached-response");
         keyRegistry.register(memberId, registeredKey);
 
-        String legacyIdempotencyKey = "moru:idem:routine-create:10:request-id";
-        redisTemplate.opsForValue().set(legacyIdempotencyKey, "cached-response");
+        String otherMemberIdempotencyKey = "moru:idem:delete-routine:10:20:request-id";
+        redisTemplate.opsForValue().set(otherMemberIdempotencyKey, "other-member-response");
+        keyRegistry.register(20L, otherMemberIdempotencyKey);
         String memberTombstone = "moru:deleted:10:routine:100";
         String otherMemberTombstone = "moru:deleted:20:routine:200";
         redisTemplate.opsForValue().set(memberTombstone, "10");
@@ -84,7 +85,7 @@ class MemberRedisLifecycleServiceTest {
 
         assertThat(redisTemplate.hasKey("moru:auth:refresh:10")).isFalse();
         assertThat(redisTemplate.hasKey(registeredKey)).isFalse();
-        assertThat(redisTemplate.hasKey(legacyIdempotencyKey)).isFalse();
+        assertThat(redisTemplate.hasKey(otherMemberIdempotencyKey)).isTrue();
         assertThat(redisTemplate.hasKey(memberTombstone)).isFalse();
         assertThat(redisTemplate.hasKey(otherMemberTombstone)).isTrue();
     }

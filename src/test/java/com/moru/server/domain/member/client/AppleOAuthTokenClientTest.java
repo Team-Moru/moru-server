@@ -8,6 +8,7 @@ import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withBadRequest;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.security.KeyPair;
@@ -110,6 +111,34 @@ class AppleOAuthTokenClientTest {
                 .andRespond(withSuccess());
 
         tokenClient.revokeRefreshToken("apple-refresh-token");
+
+        mockServer.verify();
+    }
+
+    @Test
+    void treatsAlreadyRevokedRefreshTokenAsSuccess() {
+        mockServer.expect(once(), requestTo("https://appleid.apple.com/auth/revoke"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withBadRequest()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":\"invalid_token\",\"error_description\":\"Token is inactive\"}"));
+
+        tokenClient.revokeRefreshToken("already-revoked-refresh-token");
+
+        mockServer.verify();
+    }
+
+    @Test
+    void doesNotIgnoreOtherAppleRevokeErrors() {
+        mockServer.expect(once(), requestTo("https://appleid.apple.com/auth/revoke"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withBadRequest()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":\"invalid_client\"}"));
+
+        assertThatThrownBy(() -> tokenClient.revokeRefreshToken("apple-refresh-token"))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getBaseCode()).isEqualTo(ErrorStatus.APPLE_REVOKE_FAILED));
 
         mockServer.verify();
     }
