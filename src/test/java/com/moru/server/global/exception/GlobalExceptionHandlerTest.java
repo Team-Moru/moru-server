@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
@@ -78,12 +79,18 @@ class GlobalExceptionHandlerTest {
         }
 
         assertThat(appender.list)
-                .extracting(ILoggingEvent::getFormattedMessage)
-                .anySatisfy(message -> {
-                    assertThat(message).contains("category=data_integrity");
-                    assertThat(message).contains("code=COMMON400");
-                    assertThat(message).contains("status=400");
-                    assertThat(message).doesNotContain("COMMON500", "private database value");
+                .singleElement()
+                .satisfies(event -> {
+                    assertThat(event.getFormattedMessage()).contains("category=data_integrity");
+                    assertThat(event.getFormattedMessage()).contains("code=COMMON400");
+                    assertThat(event.getFormattedMessage()).contains("status=400");
+                    assertThat(event.getFormattedMessage()).doesNotContain("COMMON500");
+
+                    String stackTrace = ThrowableProxyUtil.asString(event.getThrowableProxy());
+                    assertThat(stackTrace)
+                            .contains(DataIntegrityViolationException.class.getName())
+                            .contains("logsTheSameErrorCodeAndStatusAsTheBadRequestResponse")
+                            .doesNotContain("private database value");
                 });
     }
 }

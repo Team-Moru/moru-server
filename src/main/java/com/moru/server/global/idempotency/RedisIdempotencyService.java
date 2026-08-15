@@ -4,6 +4,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.moru.server.global.exception.BusinessException;
+import com.moru.server.global.logging.SanitizedLogException;
 import com.moru.server.global.response.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -136,7 +137,8 @@ public class RedisIdempotencyService implements IdempotencyService {
             return objectMapper.readValue(json, Envelope.class);
         } catch (Exception e) {
             log.warn("[Idempotency] envelope 파싱 실패. exceptionType={}",
-                    e.getClass().getSimpleName());
+                    e.getClass().getSimpleName(),
+                    SanitizedLogException.from(e));
             return null;
         }
     }

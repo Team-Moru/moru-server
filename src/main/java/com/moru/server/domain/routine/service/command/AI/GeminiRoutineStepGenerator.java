@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moru.server.domain.routine.entity.RoutineTTS;
 import com.moru.server.global.config.GeminiRoutineProperties;
 import com.moru.server.global.exception.BusinessException;
+import com.moru.server.global.logging.SanitizedLogException;
 import com.moru.server.global.response.code.status.ErrorStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -152,7 +153,8 @@ public class GeminiRoutineStepGenerator implements RoutineStepGenerator {
             parsed = objectMapper.readValue(jsonText, Map.class);
         } catch (Exception e) {
             log.error("AI step 응답 JSON 파싱 실패. exceptionType={}",
-                    e.getClass().getSimpleName());
+                    e.getClass().getSimpleName(),
+                    SanitizedLogException.from(e));
             throw new BusinessException(ErrorStatus.ROUTINE_STEP_GENERATION_FAILED);
         }
 

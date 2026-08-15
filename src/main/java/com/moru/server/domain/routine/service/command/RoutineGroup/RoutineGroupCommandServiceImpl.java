@@ -29,6 +29,7 @@ import com.moru.server.domain.routine.entity.Routine;
 import com.moru.server.domain.routine.entity.RoutineGroup;
 import com.moru.server.domain.routine.repository.RoutineGroupRepository;
 import com.moru.server.global.exception.BusinessException;
+import com.moru.server.global.logging.SanitizedLogException;
 import com.moru.server.global.response.code.status.ErrorStatus;
 import com.moru.server.global.idempotency.DeletedResourceTombstoneService;
 
@@ -181,7 +182,8 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             return routineStepGenerator.generateForTimer(timerTitles);
         } catch (Exception e) {
             log.warn("TIMER step 생성 실패 - 제목으로 대체합니다. exceptionType={}",
-                    e.getClass().getSimpleName());
+                    e.getClass().getSimpleName(),
+                    SanitizedLogException.from(e));
             return List.of();
         }
     }
@@ -266,7 +268,9 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         } catch (Exception e) {
             // 실패해도 삭제 자체는 이미 커밋 완료된 상태라 무시
             log.warn("[Tombstone] 삭제 기록 저장 실패 (best-effort). type={}, exceptionType={}",
-                    resourceType, e.getClass().getSimpleName());
+                    resourceType,
+                    e.getClass().getSimpleName(),
+                    SanitizedLogException.from(e));
         }
     }
 

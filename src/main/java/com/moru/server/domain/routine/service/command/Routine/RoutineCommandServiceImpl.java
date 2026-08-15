@@ -7,6 +7,7 @@ import com.moru.server.domain.routine.repository.RoutineRepository;
 import com.moru.server.global.exception.BusinessException;
 import com.moru.server.global.idempotency.DeletedResourceTombstoneService;
 import com.moru.server.global.idempotency.IdempotencyService;
+import com.moru.server.global.logging.SanitizedLogException;
 import com.moru.server.global.response.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -77,7 +78,9 @@ public class RoutineCommandServiceImpl implements RoutineCommandService {
             tombstoneService.markDeleted(resourceType, resourceId, ownerId);
         } catch (Exception e) {
             log.warn("[Tombstone] 삭제 기록 저장 실패 (best-effort). type={}, exceptionType={}",
-                    resourceType, e.getClass().getSimpleName());
+                    resourceType,
+                    e.getClass().getSimpleName(),
+                    SanitizedLogException.from(e));
         }
     }
 }

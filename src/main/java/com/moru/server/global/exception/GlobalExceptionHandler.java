@@ -4,6 +4,7 @@ package com.moru.server.global.exception;
 import com.moru.server.global.response.ApiResponse;
 import com.moru.server.global.response.code.BaseCode;
 import com.moru.server.global.response.code.status.ErrorStatus;
+import com.moru.server.global.logging.SanitizedLogException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -291,6 +292,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 category,
                 responseCode.getCode(),
                 responseCode.getHttpStatus().value(),
-                ex.getClass().getSimpleName());
+                ex.getClass().getSimpleName(),
+                SanitizedLogException.from(ex));
     }
 }
