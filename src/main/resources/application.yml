@@ -29,6 +29,9 @@ logging:
 dev-auth:
   secret: ${DEV_AUTH_SECRET:}
 
+assets:
+  public-base-url: ${PUBLIC_ASSET_BASE_URL:}
+
 security:
   apple-token:
     encryption-key: ${APPLE_TOKEN_ENCRYPTION_KEY:}
