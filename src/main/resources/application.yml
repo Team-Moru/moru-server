@@ -26,3 +26,7 @@ dev-auth:
 security:
   apple-token:
     encryption-key: ${APPLE_TOKEN_ENCRYPTION_KEY:}
+
+aws:
+  s3:
+    enabled: ${AWS_S3_ENABLED:${GOOGLE_TTS_ENABLED:false}}

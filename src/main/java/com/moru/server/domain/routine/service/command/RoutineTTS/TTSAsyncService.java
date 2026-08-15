@@ -62,8 +62,9 @@ public class TTSAsyncService {
         String sourceText = routineTTSRepository.findById(routineTtsId)
                 .map(RoutineTTS::getContent)
                 .orElse(null);
+        Long memberId = routineTTSRepository.findMemberIdByRoutineTtsId(routineTtsId);
 
-        if (sourceText == null) {
+        if (sourceText == null || memberId == null) {
             log.warn("[TTS] 대상 행이 없어 중단. routineTtsId={}", routineTtsId);
             return;
         }
@@ -75,7 +76,8 @@ public class TTSAsyncService {
             GeminiResponseDTO.AiTtsResult ttsScript = aiClient.generateTtsScript(sourceText);
             byte[] audio = googleTtsClient.synthesize(ttsScript.ttsIntro(),voiceName);
 
-            String key = "tts/%d-%s.mp3".formatted(routineTtsId, UUID.randomUUID());
+            String key = "tts/members/%d/%d-%s.mp3"
+                    .formatted(memberId, routineTtsId, UUID.randomUUID());
             s3Uploader.upload(key, audio, CONTENT_TYPE);
             uploadedKey = key;
 
