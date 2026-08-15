@@ -34,7 +34,7 @@ public class AppleOAuthTokenClient {
         this.clientSecretGenerator = clientSecretGenerator;
     }
 
-    public String exchangeAuthorizationCode(String authorizationCode) {
+    public AppleTokens exchangeAuthorizationCode(String authorizationCode) {
         if (!StringUtils.hasText(authorizationCode)) {
             throw new BusinessException(ErrorStatus.APPLE_AUTHORIZATION_CODE_INVALID);
         }
@@ -52,10 +52,12 @@ public class AppleOAuthTokenClient {
                     .retrieve()
                     .body(AppleTokenResponse.class);
 
-            if (response == null || !StringUtils.hasText(response.refreshToken())) {
+            if (response == null
+                    || !StringUtils.hasText(response.refreshToken())
+                    || !StringUtils.hasText(response.idToken())) {
                 throw new BusinessException(ErrorStatus.APPLE_AUTHORIZATION_CODE_INVALID);
             }
-            return response.refreshToken();
+            return new AppleTokens(response.refreshToken(), response.idToken());
         } catch (HttpClientErrorException exception) {
             throw new BusinessException(ErrorStatus.APPLE_AUTHORIZATION_CODE_INVALID);
         } catch (RestClientException exception) {
@@ -93,7 +95,14 @@ public class AppleOAuthTokenClient {
     }
 
     public record AppleTokenResponse(
-            @JsonProperty("refresh_token") String refreshToken
+            @JsonProperty("refresh_token") String refreshToken,
+            @JsonProperty("id_token") String idToken
+    ) {
+    }
+
+    public record AppleTokens(
+            String refreshToken,
+            String idToken
     ) {
     }
 }

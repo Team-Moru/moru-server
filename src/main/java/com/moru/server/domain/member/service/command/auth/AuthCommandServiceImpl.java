@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.moru.server.domain.member.client.AppleOAuthClient;
+import com.moru.server.domain.member.client.AppleOAuthTokenClient;
 import com.moru.server.domain.member.client.GoogleOAuthClient;
 import com.moru.server.domain.member.client.KakaoOAuthClient;
 import com.moru.server.domain.member.dto.AuthRequestDTO;
@@ -26,6 +27,7 @@ import com.moru.server.domain.member.entity.enums.OAuthProvider;
 import com.moru.server.domain.member.entity.enums.Role;
 import com.moru.server.domain.member.repository.MemberRepository;
 import com.moru.server.domain.member.repository.MemberTermRepository;
+import com.moru.server.domain.member.service.AppleOAuthCredentialService;
 import com.moru.server.domain.routine.repository.RoutineGroupRepository;
 import com.moru.server.domain.subscriptions.repository.SubscriptionsRepository;
 import com.moru.server.global.exception.BusinessException;
@@ -51,6 +53,8 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     private final KakaoOAuthClient kakaoOAuthClient;
     private final GoogleOAuthClient googleOAuthClient;
     private final AppleOAuthClient appleOAuthClient;
+    private final AppleOAuthTokenClient appleOAuthTokenClient;
+    private final AppleOAuthCredentialService appleOAuthCredentialService;
     private final JwtTokenProvider jwtTokenProvider;
 
     @Override
@@ -135,13 +139,29 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     }
 
     private AuthResponseDTO.SocialLoginResponse loginWithApple(AuthRequestDTO.SocialLoginRequest request) {
+        validateAppleAuthorizationCode(request.authorizationCode());
         AppleOAuthClient.AppleMemberInfo appleMemberInfo = appleOAuthClient.getMemberInfo(request.token());
+        AppleOAuthTokenClient.AppleTokens appleTokens =
+                appleOAuthTokenClient.exchangeAuthorizationCode(request.authorizationCode());
+        AppleOAuthClient.AppleMemberInfo exchangedTokenMemberInfo =
+                appleOAuthClient.getMemberInfo(appleTokens.idToken());
 
-        return loginOrCreateMember(
+        if (!appleMemberInfo.oauthId().equals(exchangedTokenMemberInfo.oauthId())) {
+            throw new BusinessException(ErrorStatus.INVALID_TOKEN);
+        }
+
+        MemberCreationResult result = findOrCreateMember(
+                LoginType.APPLE,
                 appleMemberInfo.oauthId(),
-                appleMemberInfo.nickname(),
-                LoginType.APPLE
+                () -> createSocialMember(
+                        appleMemberInfo.oauthId(),
+                        appleMemberInfo.nickname(),
+                        LoginType.APPLE
+                )
         );
+        appleOAuthCredentialService.saveOrUpdate(result.member().getId(), appleTokens.refreshToken());
+
+        return createSocialLoginResponse(result.member(), result.isNewMember());
     }
 
     private AuthResponseDTO.SocialLoginResponse loginOrCreateMember(
@@ -276,6 +296,12 @@ public class AuthCommandServiceImpl implements AuthCommandService {
     private void validateRefreshTokenRequired(String refreshToken) {
         if (!StringUtils.hasText(refreshToken)) {
             throw new BusinessException(ErrorStatus.TOKEN_MISSING);
+        }
+    }
+
+    private void validateAppleAuthorizationCode(String authorizationCode) {
+        if (!StringUtils.hasText(authorizationCode)) {
+            throw new BusinessException(ErrorStatus.APPLE_AUTHORIZATION_CODE_INVALID);
         }
     }
 

@@ -86,11 +86,16 @@ class AppleOAuthTokenClientTest {
                         containsString("code=apple-authorization-code"),
                         containsString("grant_type=authorization_code")
                 )))
-                .andRespond(withSuccess("{\"refresh_token\":\"apple-refresh-token\"}", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess(
+                        "{\"refresh_token\":\"apple-refresh-token\",\"id_token\":\"apple-id-token\"}",
+                        MediaType.APPLICATION_JSON
+                ));
 
-        String refreshToken = tokenClient.exchangeAuthorizationCode("apple-authorization-code");
+        AppleOAuthTokenClient.AppleTokens tokens =
+                tokenClient.exchangeAuthorizationCode("apple-authorization-code");
 
-        assertThat(refreshToken).isEqualTo("apple-refresh-token");
+        assertThat(tokens.refreshToken()).isEqualTo("apple-refresh-token");
+        assertThat(tokens.idToken()).isEqualTo("apple-id-token");
         mockServer.verify();
     }
 

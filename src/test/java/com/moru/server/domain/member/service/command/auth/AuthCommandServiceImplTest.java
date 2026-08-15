@@ -25,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import com.moru.server.domain.member.client.AppleOAuthClient;
+import com.moru.server.domain.member.client.AppleOAuthTokenClient;
 import com.moru.server.domain.member.client.GoogleOAuthClient;
 import com.moru.server.domain.member.client.KakaoOAuthClient;
 import com.moru.server.domain.member.dto.AuthRequestDTO;
@@ -35,6 +36,7 @@ import com.moru.server.domain.member.entity.enums.OAuthProvider;
 import com.moru.server.domain.member.entity.enums.Role;
 import com.moru.server.domain.member.repository.MemberRepository;
 import com.moru.server.domain.member.repository.MemberTermRepository;
+import com.moru.server.domain.member.service.AppleOAuthCredentialService;
 import com.moru.server.domain.routine.repository.RoutineGroupRepository;
 import com.moru.server.domain.subscriptions.repository.SubscriptionsRepository;
 import com.moru.server.global.exception.BusinessException;
@@ -68,6 +70,12 @@ class AuthCommandServiceImplTest {
 
     @Mock
     private AppleOAuthClient appleOAuthClient;
+
+    @Mock
+    private AppleOAuthTokenClient appleOAuthTokenClient;
+
+    @Mock
+    private AppleOAuthCredentialService appleOAuthCredentialService;
 
     @Mock
     private JwtTokenProvider jwtTokenProvider;
@@ -146,6 +154,61 @@ class AuthCommandServiceImplTest {
         assertThat(response.refreshToken()).isEqualTo("refresh-token");
         verify(memberRepository, times(2))
                 .findByLoginTypeAndOauthId(LoginType.GOOGLE, oauthId);
+    }
+
+    @Test
+    void exchangesAndStoresAppleRefreshTokenBeforeIssuingServiceTokens() {
+        Member member = Member.builder()
+                .id(1L)
+                .oauthId("apple-member-id")
+                .nickname("moru@example.com")
+                .role(Role.MEMBER)
+                .loginType(LoginType.APPLE)
+                .build();
+        when(appleOAuthClient.getMemberInfo("apple-identity-token"))
+                .thenReturn(new AppleOAuthClient.AppleMemberInfo("apple-member-id", "moru@example.com"));
+        when(appleOAuthTokenClient.exchangeAuthorizationCode("apple-authorization-code"))
+                .thenReturn(new AppleOAuthTokenClient.AppleTokens("apple-refresh-token", "exchanged-id-token"));
+        when(appleOAuthClient.getMemberInfo("exchanged-id-token"))
+                .thenReturn(new AppleOAuthClient.AppleMemberInfo("apple-member-id", "moru@example.com"));
+        when(memberRepository.findByLoginTypeAndOauthId(LoginType.APPLE, "apple-member-id"))
+                .thenReturn(Optional.of(member));
+        when(jwtTokenProvider.createAccessToken(1L, Role.MEMBER)).thenReturn("access-token");
+        when(jwtTokenProvider.createRefreshToken(1L, Role.MEMBER)).thenReturn("refresh-token");
+        when(jwtTokenProvider.getRefreshTokenExpiresAt("refresh-token"))
+                .thenReturn(LocalDateTime.now().plusDays(14));
+
+        AuthResponseDTO.SocialLoginResponse response = authCommandService.loginWithSocial(
+                OAuthProvider.APPLE,
+                new AuthRequestDTO.SocialLoginRequest(
+                        "apple-identity-token",
+                        "apple-authorization-code"
+                )
+        );
+
+        assertThat(response.memberId()).isEqualTo(1L);
+        verify(appleOAuthCredentialService).saveOrUpdate(1L, "apple-refresh-token");
+    }
+
+    @Test
+    void rejectsAppleLoginWhenAuthorizationCodeBelongsToAnotherMember() {
+        when(appleOAuthClient.getMemberInfo("apple-identity-token"))
+                .thenReturn(new AppleOAuthClient.AppleMemberInfo("apple-member-id", "moru@example.com"));
+        when(appleOAuthTokenClient.exchangeAuthorizationCode("apple-authorization-code"))
+                .thenReturn(new AppleOAuthTokenClient.AppleTokens("apple-refresh-token", "exchanged-id-token"));
+        when(appleOAuthClient.getMemberInfo("exchanged-id-token"))
+                .thenReturn(new AppleOAuthClient.AppleMemberInfo("different-member-id", "other@example.com"));
+
+        assertThatThrownBy(() -> authCommandService.loginWithSocial(
+                OAuthProvider.APPLE,
+                new AuthRequestDTO.SocialLoginRequest(
+                        "apple-identity-token",
+                        "apple-authorization-code"
+                )
+        )).isInstanceOfSatisfying(BusinessException.class, exception ->
+                assertThat(exception.getBaseCode()).isEqualTo(ErrorStatus.INVALID_TOKEN));
+
+        verify(appleOAuthCredentialService, never()).saveOrUpdate(any(), anyString());
     }
 
     @Test
