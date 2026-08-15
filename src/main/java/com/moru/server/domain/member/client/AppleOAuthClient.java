@@ -61,7 +61,7 @@ public class AppleOAuthClient {
                         }
                     })
                     .requireIssuer(oauthProperties.getApple().getIssuer())
-                    .requireAudience(oauthProperties.getApple().getAudience())
+                    .requireAudience(oauthProperties.getApple().resolveClientId())
                     .build()
                     .parseSignedClaims(identityToken)
                     .getPayload();

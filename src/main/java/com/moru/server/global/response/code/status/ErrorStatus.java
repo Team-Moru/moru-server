@@ -36,6 +36,9 @@ public enum ErrorStatus implements BaseCode {
     ACCESS_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH4013", "Access Token이 만료되었습니다."),
     INVALID_SOCIAL_PROVIDER(HttpStatus.BAD_REQUEST, "AUTH4014", "지원하지 않는 소셜 로그인 제공자입니다."),
     OAUTH_CONFIG_MISSING(HttpStatus.INTERNAL_SERVER_ERROR, "AUTH5001", "OAuth 설정값이 누락되었습니다."),
+    APPLE_AUTHORIZATION_CODE_INVALID(HttpStatus.UNAUTHORIZED, "AUTH4017", "Apple 인가 코드가 유효하지 않습니다."),
+    APPLE_OAUTH_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AUTH5002", "Apple 인증 서버를 일시적으로 사용할 수 없습니다."),
+    APPLE_REVOKE_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "AUTH5003", "Apple 계정 연결 해제에 실패했습니다."),
 
     // 멤버 관련 에러
     MEMBER_NOT_FOUND(HttpStatus.BAD_REQUEST, "MEMBER4001", "사용자가 없습니다."),
