@@ -7,6 +7,8 @@ spring:
   data:
     redis:
       url: redis://localhost:6379
+      connect-timeout: 2s
+      timeout: 2s
   jpa:
     hibernate:
       ddl-auto: {DDL_AUTO}
@@ -33,4 +35,21 @@ oauth:
   apple:
     issuer: https://appleid.apple.com
     jwks-uri: https://appleid.apple.com/auth/keys
-    audience: {APPLE_AUDIENCE}
+    client-id: {APPLE_CLIENT_ID}
+    team-id: {APPLE_TEAM_ID}
+    key-id: {APPLE_KEY_ID}
+    private-key: {APPLE_PRIVATE_KEY}
+    token-uri: https://appleid.apple.com/auth/token
+    revoke-uri: https://appleid.apple.com/auth/revoke
+
+security:
+  apple-token:
+    encryption-key: {APPLE_TOKEN_ENCRYPTION_KEY}
+  apple-withdrawal:
+    allow-missing-credential: false
+
+member:
+  withdrawal-lock:
+    ttl: 60s
+    renew-interval: 20s
+    renewal-pool-size: 4

@@ -11,7 +11,7 @@ public record AuthRequestDTO() {
             @Schema(description = "소셜 플랫폼에서 발급받은 토큰. kakao는 accessToken, google은 idToken, apple은 identityToken을 전달합니다.", example = "kakao_access_token")
             String token,
 
-            @Schema(description = "Apple 로그인에서 필요한 경우 사용하는 인가 코드. kakao/google은 null로 전달합니다.", example = "apple_authorization_code")
+            @Schema(description = "Apple 로그인 필수 인가 코드. kakao/google은 null로 전달합니다.", example = "apple_authorization_code")
             String authorizationCode
     ) {
     }

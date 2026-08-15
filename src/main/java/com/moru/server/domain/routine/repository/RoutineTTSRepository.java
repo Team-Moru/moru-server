@@ -28,4 +28,17 @@ public interface RoutineTTSRepository extends JpaRepository<RoutineTTS, Long> {
         order by t.routine.id asc, t.orderIndex asc
     """)
     List<RoutineTTS> findAllByRoutineIdsOrdered(@Param("routineIds") List<Long> routineIds);
+
+    @Query("""
+        select t.s3Url from RoutineTTS t
+        where t.routine.routineGroup.member.id = :memberId
+          and t.s3Url is not null
+    """)
+    List<String> findS3KeysByMemberId(@Param("memberId") Long memberId);
+
+    @Query("""
+        select t.routine.routineGroup.member.id from RoutineTTS t
+        where t.id = :routineTtsId
+    """)
+    Long findMemberIdByRoutineTtsId(@Param("routineTtsId") Long routineTtsId);
 }

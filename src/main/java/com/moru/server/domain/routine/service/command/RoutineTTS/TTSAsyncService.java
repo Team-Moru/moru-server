@@ -3,6 +3,7 @@ package com.moru.server.domain.routine.service.command.RoutineTTS;
 import com.moru.server.domain.routine.entity.RoutineTTS;
 import com.moru.server.domain.routine.event.RoutineTtsCreatedEvent;
 import com.moru.server.domain.routine.repository.RoutineTTSRepository;
+import com.moru.server.domain.member.service.MemberWithdrawalLock;
 import com.moru.server.global.ai.AiClient;
 import com.moru.server.global.ai.dto.GeminiResponseDTO;
 import com.moru.server.global.logging.SanitizedLogException;
@@ -27,6 +28,7 @@ public class TTSAsyncService {
     private final RoutineTTSRepository routineTTSRepository;
     private final AiClient aiClient;
     private final Executor ttsExecutor;
+    private final MemberWithdrawalLock memberWithdrawalLock;
     private static final String CONTENT_TYPE = "audio/mpeg";
 
     public TTSAsyncService(
@@ -34,12 +36,14 @@ public class TTSAsyncService {
             S3Uploader s3Uploader,
             RoutineTTSRepository routineTTSRepository,
             AiClient aiClient,
+            MemberWithdrawalLock memberWithdrawalLock,
             @Qualifier("ttsExecutor") Executor ttsExecutor
     ) {
         this.googleTtsClient = googleTtsClient;
         this.s3Uploader = s3Uploader;
         this.routineTTSRepository = routineTTSRepository;
         this.aiClient = aiClient;
+        this.memberWithdrawalLock = memberWithdrawalLock;
         this.ttsExecutor = ttsExecutor;
     }
 
@@ -62,25 +66,42 @@ public class TTSAsyncService {
 
         log.info("[TTS] 백그라운드 작업 시작. routineTtsId={}", routineTtsId);
 
-        String sourceText = routineTTSRepository.findById(routineTtsId)
-                .map(RoutineTTS::getContent)
-                .orElse(null);
-
-        if (sourceText == null) {
-            log.warn("[TTS] 대상 행이 없어 중단. routineTtsId={}", routineTtsId);
-            return;
-        }
-
         String uploadedKey = null;
 
         try {
+            String sourceText = routineTTSRepository.findById(routineTtsId)
+                    .map(RoutineTTS::getContent)
+                    .orElse(null);
+            Long memberId = routineTTSRepository.findMemberIdByRoutineTtsId(routineTtsId);
+
+            if (sourceText == null || memberId == null) {
+                log.warn("[TTS] 대상 행이 없어 중단. routineTtsId={}", routineTtsId);
+                return;
+            }
+            if (memberWithdrawalLock.isLocked(memberId)) {
+                log.info("[TTS] 회원탈퇴 처리 중이므로 작업을 중단함. routineTtsId={}", routineTtsId);
+                markFailedQuietly(routineTtsId);
+                return;
+            }
 
             GeminiResponseDTO.AiTtsResult ttsScript = aiClient.generateTtsScript(sourceText);
-            byte[] audio = googleTtsClient.synthesize(ttsScript.ttsIntro(),voiceName);
+            byte[] audio = googleTtsClient.synthesize(ttsScript.ttsIntro(), voiceName);
 
-            String key = "tts/%d-%s.mp3".formatted(routineTtsId, UUID.randomUUID());
+            if (memberWithdrawalLock.isLocked(memberId)) {
+                markFailedQuietly(routineTtsId);
+                return;
+            }
+
+            String key = "tts/members/%d/%d-%s.mp3"
+                    .formatted(memberId, routineTtsId, UUID.randomUUID());
             s3Uploader.upload(key, audio, CONTENT_TYPE);
             uploadedKey = key;
+
+            if (memberWithdrawalLock.isLocked(memberId)) {
+                deleteQuietly(uploadedKey, routineTtsId);
+                markFailedQuietly(routineTtsId);
+                return;
+            }
 
             RoutineTTS entity = routineTTSRepository.findById(routineTtsId)
                     .orElseThrow(() -> new IllegalStateException("RoutineTTS 행이 없습니다."));
