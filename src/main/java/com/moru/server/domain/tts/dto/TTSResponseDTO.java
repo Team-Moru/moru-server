@@ -30,6 +30,12 @@ public record TTSResponseDTO() {
             @Schema(description = "목소리 설명", example = "따뜻한 친구")
             String description,
 
+            @Schema(
+                    description = "목소리 미리듣기 음원 URL",
+                    example = "https://moru-prod-preview-assets.s3.ap-northeast-2.amazonaws.com/tts/previews/v1/leda.mp3"
+            )
+            String previewAudioUrl,
+
             @Schema(description = "PRO 전용 여부", example = "false")
             Boolean proOnly
     ) {
