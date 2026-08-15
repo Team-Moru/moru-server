@@ -4,6 +4,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.moru.server.global.exception.BusinessException;
+import com.moru.server.global.logging.SanitizedLogException;
 import com.moru.server.global.response.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -87,7 +88,7 @@ public class RedisIdempotencyService implements IdempotencyService {
             }
 
             if ("COMPLETED".equals(existing.status())) {
-                log.info("[Idempotency] 캐시된 응답 재반환. key={}", redisKey);
+                log.info("[Idempotency] 캐시된 응답 재반환");
                 return readValue(existing.body(), responseType);
             }
             throw new BusinessException(ErrorStatus.DUPLICATE_REQUEST);
@@ -104,7 +105,7 @@ public class RedisIdempotencyService implements IdempotencyService {
                     String.valueOf(COMPLETED_TTL.toSeconds())
             );
             if (completedResult == null || completedResult != 1L) {
-                log.error("[Idempotency] PROCESSING 락 소유권 상실. key={} - 동시 중복 처리 위험", redisKey);
+                log.error("[Idempotency] PROCESSING 락 소유권 상실 - 동시 중복 처리 위험");
             }
             return result;
         } catch (RuntimeException e) {
@@ -135,7 +136,9 @@ public class RedisIdempotencyService implements IdempotencyService {
         try {
             return objectMapper.readValue(json, Envelope.class);
         } catch (Exception e) {
-            log.warn("[Idempotency] envelope 파싱 실패. json={}", json, e);
+            log.warn("[Idempotency] envelope 파싱 실패. exceptionType={}",
+                    e.getClass().getSimpleName(),
+                    SanitizedLogException.from(e));
             return null;
         }
     }

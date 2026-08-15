@@ -1,3 +1,13 @@
+x-awslogs: &awslogs
+  driver: awslogs
+  options:
+    awslogs-region: ${CLOUDWATCH_LOG_REGION:-ap-northeast-2}
+    awslogs-group: ${CLOUDWATCH_LOG_GROUP:-/moru/prod/app}
+    awslogs-create-group: "false"
+    tag: "{{.Name}}/{{.ID}}"
+    mode: "non-blocking"
+    max-buffer-size: "${CLOUDWATCH_LOG_BUFFER_SIZE:-4m}"
+
 services:
   app:
     image: ${DOCKER_IMAGE:?DOCKER_IMAGE is required}
@@ -41,6 +51,8 @@ services:
 
     restart: unless-stopped
 
+    logging: *awslogs
+
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:${SERVER_PORT:-8080}/health || exit 1"]
       interval: 30s
@@ -57,6 +69,8 @@ services:
     volumes:
       - moru-redis-data:/data
     restart: unless-stopped
+
+    logging: *awslogs
 
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]

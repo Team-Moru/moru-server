@@ -29,6 +29,7 @@ import com.moru.server.domain.routine.entity.Routine;
 import com.moru.server.domain.routine.entity.RoutineGroup;
 import com.moru.server.domain.routine.repository.RoutineGroupRepository;
 import com.moru.server.global.exception.BusinessException;
+import com.moru.server.global.logging.SanitizedLogException;
 import com.moru.server.global.response.code.status.ErrorStatus;
 import com.moru.server.global.idempotency.DeletedResourceTombstoneService;
 
@@ -180,7 +181,9 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
         try {
             return routineStepGenerator.generateForTimer(timerTitles);
         } catch (Exception e) {
-            log.warn("TIMER step 생성 실패 - 제목으로 대체합니다. titles={}", timerTitles, e);
+            log.warn("TIMER step 생성 실패 - 제목으로 대체합니다. exceptionType={}",
+                    e.getClass().getSimpleName(),
+                    SanitizedLogException.from(e));
             return List.of();
         }
     }
@@ -198,11 +201,10 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
 
     private void publishTtsEvent(RoutineTTS tts,String voiceName) {
         if (!TransactionSynchronizationManager.isActualTransactionActive()) {
-            throw new IllegalStateException(
-                    "TTS 이벤트는 트랜잭션 안에서 발행해야 한다. routineTtsId=" + tts.getId());
+            throw new IllegalStateException("TTS 이벤트는 트랜잭션 안에서 발행해야 한다.");
         }
         if (!ttsEnabled) {
-            log.info("[TTS] 기능이 비활성화되어 FAILED 로 종결. routineTtsId={}", tts.getId());
+            log.info("[TTS] 기능이 비활성화되어 FAILED 로 종결");
             tts.markFailed();
             return;
         }
@@ -265,7 +267,10 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             tombstoneService.markDeleted(resourceType, resourceId, ownerId);
         } catch (Exception e) {
             // 실패해도 삭제 자체는 이미 커밋 완료된 상태라 무시
-            log.warn("[Tombstone] 삭제 기록 저장 실패 (best-effort). type={}, id={}", resourceType, resourceId, e);
+            log.warn("[Tombstone] 삭제 기록 저장 실패 (best-effort). type={}, exceptionType={}",
+                    resourceType,
+                    e.getClass().getSimpleName(),
+                    SanitizedLogException.from(e));
         }
     }
 

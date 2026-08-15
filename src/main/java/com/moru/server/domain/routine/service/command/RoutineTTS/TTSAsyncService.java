@@ -5,6 +5,7 @@ import com.moru.server.domain.routine.event.RoutineTtsCreatedEvent;
 import com.moru.server.domain.routine.repository.RoutineTTSRepository;
 import com.moru.server.global.ai.AiClient;
 import com.moru.server.global.ai.dto.GeminiResponseDTO;
+import com.moru.server.global.logging.SanitizedLogException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -47,17 +48,19 @@ public class TTSAsyncService {
         Long routineTtsId = event.routineTtsId();
         String voiceName = event.voiceName();
         try {
-            ttsExecutor.execute(() -> synthesizeAndUpload(routineTtsId,voiceName));
+            ttsExecutor.execute(() -> synthesizeAndUpload(routineTtsId, voiceName));
         } catch (RejectedExecutionException e) {
-            log.error("[TTS] 스레드풀 포화로 작업이 거절됨. routineTtsId={}", routineTtsId, e);
+            log.error("[TTS] 스레드풀 포화로 작업이 거절됨. routineTtsId={}, exceptionType={}",
+                    routineTtsId,
+                    e.getClass().getSimpleName(),
+                    SanitizedLogException.from(e));
             markFailedQuietly(routineTtsId);
         }
     }
 
-    private void synthesizeAndUpload(Long routineTtsId,String voiceName) {
+    private void synthesizeAndUpload(Long routineTtsId, String voiceName) {
 
-        log.info("[TTS] 백그라운드 작업 시작. routineTtsId={}, thread={}",
-                routineTtsId, Thread.currentThread().getName());
+        log.info("[TTS] 백그라운드 작업 시작. routineTtsId={}", routineTtsId);
 
         String sourceText = routineTTSRepository.findById(routineTtsId)
                 .map(RoutineTTS::getContent)
@@ -80,30 +83,36 @@ public class TTSAsyncService {
             uploadedKey = key;
 
             RoutineTTS entity = routineTTSRepository.findById(routineTtsId)
-                    .orElseThrow(() -> new IllegalStateException("RoutineTTS 행 없음: " + routineTtsId));
+                    .orElseThrow(() -> new IllegalStateException("RoutineTTS 행이 없습니다."));
 
             entity.markCompleted(key, ttsScript.ttsIntro(), ttsScript.ttsDone());
             routineTTSRepository.save(entity);
 
-            log.info("[TTS] 완료. routineTtsId={}, key={}, {} bytes", routineTtsId, key, audio.length);
+            log.info("[TTS] 생성 및 업로드 완료. routineTtsId={}", routineTtsId);
 
         } catch (Exception e) {
 
-            log.error("[TTS] 실패. routineTtsId={}", routineTtsId, e);
-            deleteQuietly(uploadedKey);
+            log.error("[TTS] 생성 또는 업로드 실패. routineTtsId={}, exceptionType={}",
+                    routineTtsId,
+                    e.getClass().getSimpleName(),
+                    SanitizedLogException.from(e));
+            deleteQuietly(uploadedKey, routineTtsId);
             markFailedQuietly(routineTtsId);
         }
     }
 
-    private void deleteQuietly(String key) {
+    private void deleteQuietly(String key, Long routineTtsId) {
         if (key == null) {
             return;
         }
         try {
             s3Uploader.delete(key);
-            log.info("[TTS] 실패로 업로드된 객체를 삭제함. key={}", key);
+            log.info("[TTS] 실패로 업로드된 객체를 삭제함. routineTtsId={}", routineTtsId);
         } catch (Exception e) {
-            log.error("[TTS] 업로드된 객체 삭제 실패. key={}", key, e);
+            log.error("[TTS] 업로드된 객체 삭제 실패. routineTtsId={}, exceptionType={}",
+                    routineTtsId,
+                    e.getClass().getSimpleName(),
+                    SanitizedLogException.from(e));
         }
     }
 
@@ -114,7 +123,10 @@ public class TTSAsyncService {
                 routineTTSRepository.save(entity);
             });
         } catch (Exception e) {
-            log.error("[TTS] 실패 상태 기록조차 실패. routineTtsId={}", routineTtsId, e);
+            log.error("[TTS] 실패 상태 기록조차 실패. routineTtsId={}, exceptionType={}",
+                    routineTtsId,
+                    e.getClass().getSimpleName(),
+                    SanitizedLogException.from(e));
         }
     }
 }
