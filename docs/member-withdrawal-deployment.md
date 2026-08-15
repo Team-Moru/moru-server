@@ -98,6 +98,18 @@ s3:DeleteObjectVersion
 
 이전 버전이 만든 미등록 멱등성 키는 키 형식만으로 회원을 안전하게 구분할 수 없으므로 탈퇴 요청에서 전체 SCAN하지 않는다. 해당 키는 최대 24시간 TTL 후 자연 만료되며, 신규 키는 `MemberRedisKeyRegistry`에 등록되어 정확히 삭제된다.
 
+Redis 명령 지연으로 회원탈퇴 잠금 갱신이 밀리지 않도록 다음 기본값을 적용한다.
+
+```env
+REDIS_CONNECT_TIMEOUT=2s
+REDIS_COMMAND_TIMEOUT=2s
+MEMBER_WITHDRAWAL_LOCK_TTL=60s
+MEMBER_WITHDRAWAL_LOCK_RENEW_INTERVAL=20s
+MEMBER_WITHDRAWAL_LOCK_RENEWAL_POOL_SIZE=4
+```
+
+갱신 풀 크기는 최소 2이며, 갱신 주기는 잠금 TTL보다 짧게 설정해야 한다. 소셜 로그인 동시성과 Redis 지연 지표를 보고 풀 크기를 조정한다.
+
 ## 5. 배포 후 확인
 
 - Apple 로그인 시 `authorizationCode`가 서버로 전달되는지 확인

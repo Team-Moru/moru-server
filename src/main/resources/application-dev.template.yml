@@ -7,6 +7,8 @@ spring:
   data:
     redis:
       url: redis://localhost:6379
+      connect-timeout: 2s
+      timeout: 2s
   jpa:
     hibernate:
       ddl-auto: {DDL_AUTO}
@@ -45,3 +47,9 @@ security:
     encryption-key: {APPLE_TOKEN_ENCRYPTION_KEY}
   apple-withdrawal:
     allow-missing-credential: false
+
+member:
+  withdrawal-lock:
+    ttl: 60s
+    renew-interval: 20s
+    renewal-pool-size: 4

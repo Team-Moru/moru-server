@@ -6,14 +6,16 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import jakarta.annotation.PreDestroy;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
@@ -31,6 +33,7 @@ public class MemberWithdrawalLock {
     private static final String SOCIAL_KEY_PREFIX = "moru:social-identity:";
     private static final Duration DEFAULT_LOCK_TTL = Duration.ofSeconds(60);
     private static final Duration DEFAULT_RENEW_INTERVAL = Duration.ofSeconds(20);
+    private static final int DEFAULT_RENEWAL_POOL_SIZE = 4;
 
     private static final DefaultRedisScript<Long> RELEASE_IF_OWNER_SCRIPT = new DefaultRedisScript<>("""
             if redis.call('GET', KEYS[1]) == ARGV[1] then
@@ -53,8 +56,32 @@ public class MemberWithdrawalLock {
     private final Duration renewInterval;
 
     @Autowired
-    public MemberWithdrawalLock(StringRedisTemplate redisTemplate) {
-        this(redisTemplate, DEFAULT_LOCK_TTL, DEFAULT_RENEW_INTERVAL);
+    public MemberWithdrawalLock(
+            StringRedisTemplate redisTemplate,
+            @Value("${member.withdrawal-lock.ttl:60s}") Duration lockTtl,
+            @Value("${member.withdrawal-lock.renew-interval:20s}") Duration renewInterval,
+            @Value("${member.withdrawal-lock.renewal-pool-size:4}") int renewalPoolSize
+    ) {
+        this.redisTemplate = redisTemplate;
+        this.lockTtl = lockTtl;
+        this.renewInterval = renewInterval;
+        validateSettings(lockTtl, renewInterval, renewalPoolSize);
+
+        AtomicInteger threadSequence = new AtomicInteger();
+        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(renewalPoolSize, runnable -> {
+            Thread thread = new Thread(
+                    runnable,
+                    "member-withdrawal-lock-renewer-" + threadSequence.incrementAndGet()
+            );
+            thread.setDaemon(true);
+            return thread;
+        });
+        executor.setRemoveOnCancelPolicy(true);
+        this.renewalExecutor = executor;
+    }
+
+    MemberWithdrawalLock(StringRedisTemplate redisTemplate) {
+        this(redisTemplate, DEFAULT_LOCK_TTL, DEFAULT_RENEW_INTERVAL, DEFAULT_RENEWAL_POOL_SIZE);
     }
 
     MemberWithdrawalLock(
@@ -62,14 +89,19 @@ public class MemberWithdrawalLock {
             Duration lockTtl,
             Duration renewInterval
     ) {
-        this.redisTemplate = redisTemplate;
-        this.lockTtl = lockTtl;
-        this.renewInterval = renewInterval;
-        this.renewalExecutor = Executors.newSingleThreadScheduledExecutor(runnable -> {
-            Thread thread = new Thread(runnable, "member-withdrawal-lock-renewer");
-            thread.setDaemon(true);
-            return thread;
-        });
+        this(redisTemplate, lockTtl, renewInterval, DEFAULT_RENEWAL_POOL_SIZE);
+    }
+
+    private static void validateSettings(Duration lockTtl, Duration renewInterval, int renewalPoolSize) {
+        if (!lockTtl.isPositive()) {
+            throw new IllegalArgumentException("회원 잠금 TTL은 0보다 커야 합니다.");
+        }
+        if (!renewInterval.isPositive() || renewInterval.compareTo(lockTtl) >= 0) {
+            throw new IllegalArgumentException("회원 잠금 갱신 주기는 0보다 크고 TTL보다 작아야 합니다.");
+        }
+        if (renewalPoolSize < 2) {
+            throw new IllegalArgumentException("회원 잠금 갱신 풀 크기는 2 이상이어야 합니다.");
+        }
     }
 
     public Optional<String> tryAcquire(Long memberId) {
