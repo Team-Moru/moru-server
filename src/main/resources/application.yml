@@ -44,3 +44,7 @@ member:
 aws:
   s3:
     enabled: ${AWS_S3_ENABLED:false}
+    
+google:
+  tts:
+    enabled: ${GOOGLE_TTS_ENABLED:false}

@@ -148,22 +148,26 @@ public class TTSAsyncService {
 
         log.info("[TTS] 재합성 시작. routineTtsId={}, voiceVersion={}", routineTtsId, voiceVersion);
 
-        RoutineTTS entity = routineTTSRepository.findById(routineTtsId).orElse(null);
-        Long memberId = routineTTSRepository.findMemberIdByRoutineTtsId(routineTtsId);
-
-        if (entity == null || memberId == null) {
-            log.warn("[TTS] 재합성 대상 행이 없어 중단. routineTtsId={}", routineTtsId);
-            return;
-        }
-        if (memberWithdrawalLock.isLocked(memberId)) {
-            log.info("[TTS] 회원탈퇴 처리 중이므로 재합성을 중단함. routineTtsId={}", routineTtsId);
-            return;
-        }
-
-        String previousKey = entity.getS3Url();
+        String previousKey = null;
         String uploadedKey = null;
 
         try {
+            // DB·Redis 조회도 실패할 수 있다. try 밖에 두면 예외가 executor 로 빠져나가
+            // markFailedQuietly 가 실행되지 않고, 행이 PENDING 에 갇힌다.
+            RoutineTTS entity = routineTTSRepository.findById(routineTtsId).orElse(null);
+            Long memberId = routineTTSRepository.findMemberIdByRoutineTtsId(routineTtsId);
+
+            if (entity == null || memberId == null) {
+                log.warn("[TTS] 재합성 대상 행이 없어 중단. routineTtsId={}", routineTtsId);
+                return;
+            }
+            if (memberWithdrawalLock.isLocked(memberId)) {
+                log.info("[TTS] 회원탈퇴 처리 중이므로 재합성을 중단함. routineTtsId={}", routineTtsId);
+                return;
+            }
+
+            previousKey = entity.getS3Url();
+
             String intro = entity.getTtsIntro();
             String done = entity.getTtsDone();
 

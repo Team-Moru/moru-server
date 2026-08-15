@@ -49,16 +49,29 @@ public class MemberCommandServiceImpl implements MemberCommandService {
         }
 
         member.updateVoiceType(tts);
+        member.bumpVoiceSelectionVersion();
 
         if (!ttsEnabled) {
-            log.info("[TTS] 기능이 비활성화되어 재합성을 건너뜀. memberId={}", memberId);
+            markAllFailed(memberId);
             return MemberConverter.toTtsUpdateResponse(member);
         }
 
-        member.bumpVoiceSelectionVersion();
         requestRegeneration(memberId, resolveVoiceName(tts), member.getVoiceSelectionVersion());
 
         return MemberConverter.toTtsUpdateResponse(member);
+    }
+
+    /**
+     * 재합성을 수행할 워커가 없다. 버전만 올리고 두면 기존 음원이 새 버전인 것처럼 보이므로
+     * 생성 경로(RoutineGroupCommandServiceImpl.publishTtsEvent)와 동일하게 FAILED 로 종결한다.
+     */
+    private void markAllFailed(Long memberId) {
+        List<RoutineTTS> targets = routineTTSRepository.findAllByMemberId(memberId);
+        for (RoutineTTS target : targets) {
+            target.markFailed();
+        }
+        log.info("[TTS] 기능이 비활성화되어 재합성을 건너뛰고 FAILED 로 종결. memberId={}, 건수={}",
+                memberId, targets.size());
     }
 
     private boolean isSameVoice(Member member, Long ttsId) {
