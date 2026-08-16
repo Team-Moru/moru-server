@@ -12,8 +12,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -32,6 +35,7 @@ public class TTSAsyncService {
     private final Executor ttsExecutor;
     private final Executor ttsRegenerateExecutor;
     private final MemberWithdrawalLock memberWithdrawalLock;
+    private final TransactionTemplate newTransaction;
     private static final String CONTENT_TYPE = "audio/mpeg";
 
     public TTSAsyncService(
@@ -40,6 +44,7 @@ public class TTSAsyncService {
             RoutineTTSRepository routineTTSRepository,
             AiClient aiClient,
             MemberWithdrawalLock memberWithdrawalLock,
+            PlatformTransactionManager transactionManager,
             @Qualifier("ttsExecutor") Executor ttsExecutor,
             @Qualifier("ttsRegenerateExecutor") Executor ttsRegenerateExecutor
     ) {
@@ -50,6 +55,9 @@ public class TTSAsyncService {
         this.memberWithdrawalLock = memberWithdrawalLock;
         this.ttsExecutor = ttsExecutor;
         this.ttsRegenerateExecutor = ttsRegenerateExecutor;
+
+        this.newTransaction = new TransactionTemplate(transactionManager);
+        this.newTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -243,10 +251,11 @@ public class TTSAsyncService {
 
     private void markFailedQuietly(Long routineTtsId) {
         try {
-            routineTTSRepository.findById(routineTtsId).ifPresent(entity -> {
-                entity.markFailed();
-                routineTTSRepository.save(entity);
-            });
+            newTransaction.executeWithoutResult(status ->
+                    routineTTSRepository.findById(routineTtsId).ifPresent(entity -> {
+                        entity.markFailed();
+                        routineTTSRepository.save(entity);
+                    }));
         } catch (Exception e) {
             log.error("[TTS] 실패 상태 기록조차 실패. routineTtsId={}, exceptionType={}",
                     routineTtsId,

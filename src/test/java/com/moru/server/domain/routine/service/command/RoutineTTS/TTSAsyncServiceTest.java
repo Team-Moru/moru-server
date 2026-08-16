@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import com.moru.server.domain.member.service.MemberWithdrawalLock;
 import com.moru.server.domain.routine.entity.RoutineTTS;
@@ -38,6 +39,9 @@ class TTSAsyncServiceTest {
     @Mock
     private MemberWithdrawalLock memberWithdrawalLock;
 
+    @Mock
+    private PlatformTransactionManager transactionManager;
+
     private TTSAsyncService ttsAsyncService;
 
     @BeforeEach
@@ -49,6 +53,7 @@ class TTSAsyncServiceTest {
                 routineTTSRepository,
                 aiClient,
                 memberWithdrawalLock,
+                transactionManager,
                 directExecutor,
                 directExecutor
         );
