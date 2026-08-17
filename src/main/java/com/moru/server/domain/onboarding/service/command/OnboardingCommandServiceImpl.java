@@ -27,14 +27,14 @@ public class OnboardingCommandServiceImpl implements OnboardingCommandService {
         Member member = memberRepository.findByIdForUpdate(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorStatus.MEMBER_NOT_FOUND));
 
-        if (Boolean.TRUE.equals(member.getOnboardingCompleted())) {
-            return new OnboardingResponseDTO.StatusResponse(true);
-        }
-
         boolean ownsRoutineGroup = routineGroupRepository
                 .existsByIdAndMember_Id(request.routineGroupId(), memberId);
         if (!ownsRoutineGroup) {
             throw new BusinessException(ErrorStatus.ROUTINE_GROUP_NOT_FOUND);
+        }
+
+        if (Boolean.TRUE.equals(member.getOnboardingCompleted())) {
+            return new OnboardingResponseDTO.StatusResponse(true);
         }
 
         member.completeOnboarding();

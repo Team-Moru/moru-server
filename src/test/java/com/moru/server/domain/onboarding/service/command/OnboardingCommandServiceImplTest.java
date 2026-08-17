@@ -2,7 +2,6 @@ package com.moru.server.domain.onboarding.service.command;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -58,13 +57,29 @@ class OnboardingCommandServiceImplTest {
     void returnsSuccessWhenOnboardingIsAlreadyCompleted() {
         Member member = createMember(true);
         when(memberRepository.findByIdForUpdate(MEMBER_ID)).thenReturn(Optional.of(member));
+        when(routineGroupRepository.existsByIdAndMember_Id(ROUTINE_GROUP_ID, MEMBER_ID))
+                .thenReturn(true);
 
         OnboardingResponseDTO.StatusResponse response =
                 onboardingCommandService.completeOnboarding(MEMBER_ID, createRequest());
 
         assertThat(response.onboardingCompleted()).isTrue();
-        verify(routineGroupRepository, never())
+        verify(routineGroupRepository)
                 .existsByIdAndMember_Id(ROUTINE_GROUP_ID, MEMBER_ID);
+    }
+
+    @Test
+    void rejectsUnownedRoutineGroupEvenWhenOnboardingIsAlreadyCompleted() {
+        Member member = createMember(true);
+        when(memberRepository.findByIdForUpdate(MEMBER_ID)).thenReturn(Optional.of(member));
+        when(routineGroupRepository.existsByIdAndMember_Id(ROUTINE_GROUP_ID, MEMBER_ID))
+                .thenReturn(false);
+
+        assertThatThrownBy(() ->
+                onboardingCommandService.completeOnboarding(MEMBER_ID, createRequest()))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getBaseCode())
+                                .isEqualTo(ErrorStatus.ROUTINE_GROUP_NOT_FOUND));
     }
 
     @Test
