@@ -13,6 +13,8 @@ import java.util.Optional;
 
 public interface RoutineGroupRepository extends JpaRepository<RoutineGroup, Long> {
 
+    boolean existsByIdAndMember_Id(Long routineGroupId, Long memberId);
+
     @Query("""
         select distinct rg from RoutineGroup rg
         left join fetch rg.routines
