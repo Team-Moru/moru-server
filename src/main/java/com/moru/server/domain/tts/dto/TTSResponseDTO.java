@@ -43,7 +43,7 @@ public record TTSResponseDTO() {
 
             @Schema(
                     description = "루틴 완료 공통 음원 URL",
-                    example = "https://moru-prod-preview-assets.s3.ap-northeast-2.amazonaws.com/tts/common/v1/leda/done.mp3",
+                    example = "https://moru-prod-preview-assets.s3.ap-northeast-2.amazonaws.com/tts/common/v1/leda-done.mp3",
                     nullable = true
             )
             String doneAudioUrl,
@@ -53,7 +53,7 @@ public record TTSResponseDTO() {
 
             @Schema(
                     description = "루틴 리마인드 공통 음원 URL",
-                    example = "https://moru-prod-preview-assets.s3.ap-northeast-2.amazonaws.com/tts/common/v1/leda/remind.mp3",
+                    example = "https://moru-prod-preview-assets.s3.ap-northeast-2.amazonaws.com/tts/common/v1/leda-remind.mp3",
                     nullable = true
             )
             String remindAudioUrl,
