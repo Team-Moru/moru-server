@@ -3,6 +3,10 @@ spring:
     import: optional:file:.env[.properties]
   application:
     name: moru-server
+  flyway:
+    enabled: ${FLYWAY_ENABLED:false}
+    baseline-on-migrate: true
+    baseline-version: 1
   jpa:
     properties:
       hibernate:

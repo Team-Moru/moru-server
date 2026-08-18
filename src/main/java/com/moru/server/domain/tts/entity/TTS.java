@@ -31,6 +31,16 @@ public class TTS extends BaseEntity {
     @Column(name = "preview_audio_key", length = 500)
     private String previewAudioKey;
 
+    @Column(name = "done_audio_key", length = 500)
+    private String doneAudioKey;
+
+    @Column(name = "remind_audio_key", length = 500)
+    private String remindAudioKey;
+
+    @Column(name = "selection_version", nullable = false)
+    @Builder.Default
+    private Integer selectionVersion = 1;
+
     @Column(name = "is_pro_only", nullable = false)
     @Builder.Default
     private Boolean isProOnly = false;
