@@ -6,6 +6,7 @@ import org.springframework.util.StringUtils;
 
 import com.moru.server.domain.tts.dto.TTSResponseDTO;
 import com.moru.server.domain.tts.entity.TTS;
+import com.moru.server.domain.tts.entity.enums.TtsAudioStatus;
 
 public class TTSConverter {
 
@@ -30,8 +31,20 @@ public class TTSConverter {
                 .displayName(voice.getLabel())
                 .description(voice.getDescription())
                 .previewAudioUrl(resolvePublicAssetUrl(publicAssetBaseUrl, voice.getPreviewAudioKey()))
+                .previewAudioStatus(resolveAudioStatus(voice.getPreviewAudioKey()))
+                .doneAudioUrl(resolvePublicAssetUrl(publicAssetBaseUrl, voice.getDoneAudioKey()))
+                .doneAudioStatus(resolveAudioStatus(voice.getDoneAudioKey()))
+                .remindAudioUrl(resolvePublicAssetUrl(publicAssetBaseUrl, voice.getRemindAudioKey()))
+                .remindAudioStatus(resolveAudioStatus(voice.getRemindAudioKey()))
+                .selectionVersion(voice.getSelectionVersion())
                 .proOnly(voice.getIsProOnly())
                 .build();
+    }
+
+    private static TtsAudioStatus resolveAudioStatus(String objectKey) {
+        return StringUtils.hasText(objectKey)
+                ? TtsAudioStatus.READY
+                : TtsAudioStatus.PENDING;
     }
 
     private static String resolvePublicAssetUrl(String baseUrl, String objectKey) {
