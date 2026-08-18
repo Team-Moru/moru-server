@@ -105,7 +105,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
 
             for (Routine routine : saved.getRoutines()) {
                 for (RoutineTTS tts : routine.getTtsList()) {
-                    publishTtsEvent(tts, voiceName);
+                    publishTtsEvent(tts, voiceName, member.getVoiceSelectionVersion());
                 }
             }
 
@@ -199,7 +199,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
     }
 
 
-    private void publishTtsEvent(RoutineTTS tts,String voiceName) {
+    private void publishTtsEvent(RoutineTTS tts,String voiceName,Long voiceVersion) {
         if (!TransactionSynchronizationManager.isActualTransactionActive()) {
             throw new IllegalStateException("TTS 이벤트는 트랜잭션 안에서 발행해야 한다.");
         }
@@ -208,7 +208,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             tts.markFailed();
             return;
         }
-        eventPublisher.publishEvent(new RoutineTtsCreatedEvent(tts.getId(),voiceName));
+        eventPublisher.publishEvent(new RoutineTtsCreatedEvent(tts.getId(),voiceName,voiceVersion));
     }
 
 
@@ -355,7 +355,7 @@ public class RoutineGroupCommandServiceImpl implements RoutineGroupCommandServic
             Routine saved = routineRepository.save(routine);
 
                 for (RoutineTTS tts : saved.getTtsList()) {
-                    publishTtsEvent(tts, voiceName);
+                    publishTtsEvent(tts, voiceName, member.getVoiceSelectionVersion());
                 }
 
             return saved;

@@ -45,6 +45,10 @@ public class Member extends BaseEntity {
     @JoinColumn(name = "tts_id")
     private TTS voiceType;
 
+    @Column(name = "voice_selection_version", nullable = false)
+    @Builder.Default
+    private Long voiceSelectionVersion = 0L;
+
     @Column(name = "profile_image_key", length = 500)
     private String profileImageKey;
 
@@ -66,5 +70,9 @@ public class Member extends BaseEntity {
 
     public void updateVoiceType(TTS voiceType) {
         this.voiceType = voiceType;
+    }
+
+    public void bumpVoiceSelectionVersion() {
+        this.voiceSelectionVersion++;
     }
 }

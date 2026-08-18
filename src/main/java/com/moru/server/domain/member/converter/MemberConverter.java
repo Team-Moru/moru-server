@@ -23,6 +23,7 @@ public class MemberConverter {
                 .ttsId(member.getVoiceType().getId())
                 .voiceCode(member.getVoiceType().getName())
                 .displayName(member.getVoiceType().getLabel())
+                .selectionVersion(member.getVoiceSelectionVersion())
                 .build();
     }
 

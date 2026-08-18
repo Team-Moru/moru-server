@@ -47,15 +47,24 @@ public class RoutineTTS extends BaseEntity {
     @Column(name = "s3_url")
     private String s3Url;
 
-    public void markCompleted(String s3Url, String ttsIntro, String ttsDone) {
+    @Column(name = "voice_version")
+    private Long voiceVersion;
+
+    public void markCompleted(String s3Url, String ttsIntro, String ttsDone, Long voiceVersion) {
         this.ttsStatus = TtsStatus.COMPLETED;
         this.s3Url = s3Url;
         this.ttsIntro = truncate(ttsIntro);
         this.ttsDone = truncate(ttsDone);
+        this.voiceVersion = voiceVersion;
     }
 
     public void markFailed() {
         this.ttsStatus = TtsStatus.FAILED;
+    }
+
+
+    public void markPending() {
+        this.ttsStatus = TtsStatus.PENDING;
     }
 
     public static String truncate(String text) {

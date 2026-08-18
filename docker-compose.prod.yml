@@ -26,6 +26,7 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: ${JPA_DDL_AUTO:-validate}
       SPRING_JPA_OPEN_IN_VIEW: "false"
       SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "false"
+      SPRING_FLYWAY_ENABLED: ${FLYWAY_ENABLED:-true}
 
       LOGGING_LEVEL_ORG_HIBERNATE_SQL: info
       LOGGING_LEVEL_ORG_HIBERNATE_ORM_JDBC_BIND: off
@@ -50,6 +51,8 @@ services:
         condition: service_healthy
 
     restart: unless-stopped
+
+    stop_grace_period: 90s
 
     logging: *awslogs
 

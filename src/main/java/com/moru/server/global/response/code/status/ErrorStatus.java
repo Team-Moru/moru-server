@@ -67,7 +67,8 @@ public enum ErrorStatus implements BaseCode {
 
 
     // TTS 관련 에러
-    TTS_NOT_FOUND(HttpStatus.BAD_REQUEST, "TTS4001", "존재하지 않는 목소리입니다.");
+    TTS_NOT_FOUND(HttpStatus.BAD_REQUEST, "TTS4001", "존재하지 않는 목소리입니다."),
+    TTS_VOICE_NAME_NOT_CONFIGURED(HttpStatus.INTERNAL_SERVER_ERROR, "TTS5001", "목소리 설정이 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.");
 
     private final HttpStatus httpStatus;
     private final String code;

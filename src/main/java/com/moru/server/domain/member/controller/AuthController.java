@@ -39,7 +39,7 @@ public class AuthController {
             - Authorization 헤더 없이 호출합니다.
             - kakao: token에 카카오 accessToken을 전달합니다.
             - google: token에 Google idToken을 전달합니다.
-            - apple: token에 Apple identityToken을 전달합니다.
+            - apple: identityToken에 Apple identityToken을 전달합니다. token도 호환됩니다.
             """;
     private static final String KAKAO_REQUEST_EXAMPLE = """
             {
@@ -55,7 +55,7 @@ public class AuthController {
             """;
     private static final String APPLE_REQUEST_EXAMPLE = """
             {
-              "token": "apple_identity_token",
+              "identityToken": "apple_identity_token",
               "authorizationCode": "apple_authorization_code"
             }
             """;

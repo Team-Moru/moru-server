@@ -41,7 +41,15 @@ public record MemberResponseDTO() {
             String voiceCode,
 
             @Schema(description = "TTS 목소리 표시 이름", example = "민서")
-            String displayName
+            String displayName,
+
+            @Schema(description = """
+                    이번 변경으로 올라간 최신 목소리 선택 버전. 목소리를 바꿀 때마다 1씩 증가한다.
+                    이 응답 시점에 회원의 모든 루틴 TTS 는 PENDING 으로 초기화되며,
+                    재합성이 끝난 스텝은 TTS 조회 응답의 selectionVersion 이 이 값과 같아진다.
+                    두 값이 같고 ttsStatus 가 COMPLETED 인 스텝만 새 목소리로 만들어진 음원이다.""",
+                    example = "3")
+            Long selectionVersion
     ) {
     }
 
