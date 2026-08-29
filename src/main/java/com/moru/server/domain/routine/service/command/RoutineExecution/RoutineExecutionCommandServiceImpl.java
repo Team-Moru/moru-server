@@ -49,12 +49,37 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
                         throw new BusinessException(ErrorStatus.ROUTINE_NOT_FOUND);
                     }
 
-                    RoutineExecution routineExecution = RoutineExecutionConverter.toEntity(req, routine);
-                    routineExecutionRepository.save(routineExecution);
+                    RoutineExecution routineExecution = routineExecutionRepository
+                            .findByRoutine_IdAndExecutedDate(req.routineId(), req.executedDate())
+                            .map(existing -> applyExecutionResult(existing, req))
+                            .orElseGet(() -> routineExecutionRepository.save(
+                                    RoutineExecutionConverter.toEntity(req, routine)
+                            ));
 
                     return RoutineExecutionConverter.toResponse(routineExecution);
                 })
         );
+    }
+
+    private RoutineExecution applyExecutionResult(
+            RoutineExecution existing,
+            RoutineExecutionRequestDTO.RoutineExecutionResultReq req
+    ) {
+        if (Boolean.TRUE.equals(req.isCompleted())) {
+            existing.complete(req.durationSecond());
+        } else {
+            existing.fail(req.durationSecond());
+        }
+        if (req.memberInput() != null) {
+            existing.recordInput(req.memberInput());
+        }
+        if (req.aiResponse() != null) {
+            existing.recordAiResponse(req.aiResponse());
+        }
+        if (req.actualWakeTime() != null) {
+            existing.recordActualWakeTime(req.actualWakeTime());
+        }
+        return existing;
     }
 
 
@@ -77,8 +102,7 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
         Routine routine = routineRepository.findWithGroupById(req.routineId())
                 .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_NOT_FOUND));
 
-
-        if(!routine.getRoutineGroup().isOwnedBy(memberId)){
+        if (!routine.getRoutineGroup().isOwnedBy(memberId)) {
             throw new BusinessException(ErrorStatus.ROUTINE_NOT_FOUND);
         }
 
@@ -88,16 +112,35 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
             throw new BusinessException(ErrorStatus.AI_JUDGE_FAILED);
         }
 
-        if(dto.shouldProceed()){
-            RoutineExecution routineExecution = RoutineExecutionConverter.toEntity(req,routine,dto.aiResponse());
-            routineExecutionRepository.save(routineExecution);
+        if (dto.shouldProceed()) {
+            routineExecutionRepository
+                    .findByRoutine_IdAndExecutedDate(req.routineId(), req.executedDate())
+                    .map(existing -> applyJudgeResult(existing, req, dto.aiResponse()))
+                    .orElseGet(() -> routineExecutionRepository.save(
+                            RoutineExecutionConverter.toEntity(req, routine, dto.aiResponse())
+                    ));
         }
-
 
         return RoutineExecutionResponseDTO.AiResponseRes.builder()
                 .aiResponse(dto.aiResponse())
                 .shouldProceed(dto.shouldProceed())
                 .build();
+    }
+
+    private RoutineExecution applyJudgeResult(
+            RoutineExecution existing,
+            RoutineExecutionRequestDTO.AiResponseReq req,
+            String aiResponse
+    ) {
+        existing.complete(req.durationSecond());
+        existing.recordAiResponse(aiResponse);
+        if (req.memberInput() != null) {
+            existing.recordInput(req.memberInput());
+        }
+        if (req.actualWakeTime() != null) {
+            existing.recordActualWakeTime(req.actualWakeTime());
+        }
+        return existing;
     }
 
 

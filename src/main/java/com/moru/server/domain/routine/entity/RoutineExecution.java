@@ -12,7 +12,13 @@ import java.time.LocalTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
-@Table(name = "routine_execution")
+@Table(
+        name = "routine_execution",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_routine_execution_routine_date",
+                columnNames = {"routine_id", "executed_date"}
+        )
+)
 public class RoutineExecution extends BaseEntity {
 
     @Id
@@ -50,6 +56,10 @@ public class RoutineExecution extends BaseEntity {
     public void fail(Integer durationSecond) {
         this.isCompleted = false;
         this.durationSecond = durationSecond;
+    }
+
+    public void recordActualWakeTime(LocalTime actualWakeTime) {
+        this.actualWakeTime = actualWakeTime;
     }
 
     public void recordInput(String memberInput) {

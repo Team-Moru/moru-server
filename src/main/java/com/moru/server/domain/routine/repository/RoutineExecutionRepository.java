@@ -7,8 +7,11 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface RoutineExecutionRepository extends JpaRepository<RoutineExecution, Long> {
+
+    Optional<RoutineExecution> findByRoutine_IdAndExecutedDate(Long routineId, LocalDate executedDate);
 
     @Query("""
         select distinct re.executedDate from RoutineExecution re
