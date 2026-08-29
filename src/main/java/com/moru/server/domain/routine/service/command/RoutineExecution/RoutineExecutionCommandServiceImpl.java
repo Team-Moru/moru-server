@@ -113,12 +113,15 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
         }
 
         if (dto.shouldProceed()) {
-            routineExecutionRepository
-                    .findByRoutine_IdAndExecutedDate(req.routineId(), req.executedDate())
-                    .map(existing -> applyJudgeResult(existing, req, dto.aiResponse()))
-                    .orElseGet(() -> routineExecutionRepository.save(
-                            RoutineExecutionConverter.toEntity(req, routine, dto.aiResponse())
-                    ));
+            transactionTemplate.execute(status -> {
+                routineExecutionRepository
+                        .findByRoutine_IdAndExecutedDate(req.routineId(), req.executedDate())
+                        .map(existing -> applyJudgeResult(existing, req, dto.aiResponse()))
+                        .orElseGet(() -> routineExecutionRepository.save(
+                                RoutineExecutionConverter.toEntity(req, routine, dto.aiResponse())
+                        ));
+                return null;
+            });
         }
 
         return RoutineExecutionResponseDTO.AiResponseRes.builder()
