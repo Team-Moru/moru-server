@@ -44,25 +44,42 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
                 idempotencyKey,
                 req,
                 RoutineExecutionResponseDTO.RoutineExecutionResultRes.class,
-                () -> transactionTemplate.execute(status -> {
-                    Routine routine = routineRepository.findById(req.routineId())
-                            .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_NOT_FOUND));
-
-                    if (!routine.getRoutineGroup().isOwnedBy(memberId)) {
-                        throw new BusinessException(ErrorStatus.ROUTINE_NOT_FOUND);
-                    }
-
-                    RoutineExecution routineExecution = upsertExecutionResult(
-                            req.routineId(), req.executedDate(), routine, req
-                    );
-
-                    return RoutineExecutionConverter.toResponse(routineExecution);
-                })
+                () -> doSaveExecutionResult(memberId, req)
         );
     }
 
+    private RoutineExecutionResponseDTO.RoutineExecutionResultRes doSaveExecutionResult(
+            Long memberId,
+            RoutineExecutionRequestDTO.RoutineExecutionResultReq req
+    ) {
+        try {
+            return transactionTemplate.execute(status -> {
+                Routine routine = routineRepository.findById(req.routineId())
+                        .orElseThrow(() -> new BusinessException(ErrorStatus.ROUTINE_NOT_FOUND));
 
-    private RoutineExecution upsertExecutionResult(
+                if (!routine.getRoutineGroup().isOwnedBy(memberId)) {
+                    throw new BusinessException(ErrorStatus.ROUTINE_NOT_FOUND);
+                }
+
+                RoutineExecution routineExecution = findOrCreateExecution(
+                        req.routineId(), req.executedDate(), routine, req
+                );
+                return RoutineExecutionConverter.toResponse(routineExecution);
+            });
+        } catch (DataIntegrityViolationException e) {
+            // 동시 요청으로 다른 트랜잭션이 먼저 insert함 -> 새 트랜잭션에서 재조회 후 업데이트
+            return transactionTemplate.execute(status -> {
+                RoutineExecution raceWinner = routineExecutionRepository
+                        .findByRoutine_IdAndExecutedDate(req.routineId(), req.executedDate())
+                        .orElseThrow(() -> e);
+                RoutineExecution updated = applyExecutionResult(raceWinner, req);
+                return RoutineExecutionConverter.toResponse(updated);
+            });
+        }
+    }
+
+    // try-catch 없이 "찾거나 새로 만들거나"만 함 - 예외는 그대로 위로 던져서 트랜잭션이 자연스럽게 롤백
+    private RoutineExecution findOrCreateExecution(
             Long routineId,
             LocalDate executedDate,
             Routine routine,
@@ -71,19 +88,11 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
         return routineExecutionRepository
                 .findByRoutine_IdAndExecutedDate(routineId, executedDate)
                 .map(existing -> applyExecutionResult(existing, req))
-                .orElseGet(() -> {
-                    try {
-                        return routineExecutionRepository.saveAndFlush(
-                                RoutineExecutionConverter.toEntity(req, routine)
-                        );
-                    } catch (DataIntegrityViolationException e) {
-                        RoutineExecution raceWinner = routineExecutionRepository
-                                .findByRoutine_IdAndExecutedDate(routineId, executedDate)
-                                .orElseThrow(() -> e);
-                        return applyExecutionResult(raceWinner, req);
-                    }
-                });
+                .orElseGet(() -> routineExecutionRepository.saveAndFlush(
+                        RoutineExecutionConverter.toEntity(req, routine)
+                ));
     }
+
 
     private RoutineExecution applyExecutionResult(
             RoutineExecution existing,
@@ -137,16 +146,49 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
         }
 
         if (dto.shouldProceed()) {
-            transactionTemplate.execute(status -> {
-                upsertJudgeResult(req.routineId(), req.executedDate(), routine, req, dto.aiResponse());
-                return null;
-            });
+            saveJudgeResultWithRetry(req, routine, dto.aiResponse());
         }
 
         return RoutineExecutionResponseDTO.AiResponseRes.builder()
                 .aiResponse(dto.aiResponse())
                 .shouldProceed(dto.shouldProceed())
                 .build();
+    }
+
+    private void saveJudgeResultWithRetry(
+            RoutineExecutionRequestDTO.AiResponseReq req,
+            Routine routine,
+            String aiResponse
+    ) {
+        try {
+            transactionTemplate.execute(status -> {
+                findOrCreateJudgeResult(req.routineId(), req.executedDate(), routine, req, aiResponse);
+                return null;
+            });
+        } catch (DataIntegrityViolationException e) {
+            transactionTemplate.execute(status -> {
+                RoutineExecution raceWinner = routineExecutionRepository
+                        .findByRoutine_IdAndExecutedDate(req.routineId(), req.executedDate())
+                        .orElseThrow(() -> e);
+                applyJudgeResult(raceWinner, req, aiResponse);
+                return null;
+            });
+        }
+    }
+
+    private RoutineExecution findOrCreateJudgeResult(
+            Long routineId,
+            LocalDate executedDate,
+            Routine routine,
+            RoutineExecutionRequestDTO.AiResponseReq req,
+            String aiResponse
+    ) {
+        return routineExecutionRepository
+                .findByRoutine_IdAndExecutedDate(routineId, executedDate)
+                .map(existing -> applyJudgeResult(existing, req, aiResponse))
+                .orElseGet(() -> routineExecutionRepository.saveAndFlush(
+                        RoutineExecutionConverter.toEntity(req, routine, aiResponse)
+                ));
     }
 
     private RoutineExecution applyJudgeResult(
@@ -164,30 +206,5 @@ public class RoutineExecutionCommandServiceImpl implements RoutineExecutionComma
         }
         return existing;
     }
-
-    private RoutineExecution upsertJudgeResult(
-            Long routineId,
-            LocalDate executedDate,
-            Routine routine,
-            RoutineExecutionRequestDTO.AiResponseReq req,
-            String aiResponse
-    ) {
-        return routineExecutionRepository
-                .findByRoutine_IdAndExecutedDate(routineId, executedDate)
-                .map(existing -> applyJudgeResult(existing, req, aiResponse))
-                .orElseGet(() -> {
-                    try {
-                        return routineExecutionRepository.saveAndFlush(
-                                RoutineExecutionConverter.toEntity(req, routine, aiResponse)
-                        );
-                    } catch (DataIntegrityViolationException e) {
-                        RoutineExecution raceWinner = routineExecutionRepository
-                                .findByRoutine_IdAndExecutedDate(routineId, executedDate)
-                                .orElseThrow(() -> e);
-                        return applyJudgeResult(raceWinner, req, aiResponse);
-                    }
-                });
-    }
-
 
 }
