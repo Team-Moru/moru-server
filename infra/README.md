@@ -50,9 +50,10 @@ S3 backend.
 
 ### Configure the production backend
 
-1. Copy `infra/prod/backend.hcl.example` to `infra/prod/backend.hcl`.
+1. Copy `infra/prod/backend.tf.example` to `infra/prod/backend.tf` and copy
+   `infra/prod/backend.hcl.example` to `infra/prod/backend.hcl`.
 2. Replace the bucket name with the approved state bucket name. Do not commit
-   this file.
+   either file.
 3. Run the following from `infra/prod`:
 
    ```bash
@@ -62,6 +63,10 @@ S3 backend.
 
 The first production plan should show imports only. Any planned create, update,
 replacement, or destroy for an existing production resource is a stop signal.
+
+Before the state bucket exists, leave `backend.tf` absent and use Terraform's
+local backend only for read-only validation. Local state and plan files are
+ignored by Git and must never be committed.
 
 ## Non-Terraform Host Configuration
 

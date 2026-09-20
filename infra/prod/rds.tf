@@ -97,6 +97,7 @@ resource "aws_db_instance" "moru" {
   backup_window              = "16:19-16:49"
   maintenance_window         = "sun:14:52-sun:15:22"
   apply_immediately          = false
+  skip_final_snapshot        = true
 
   lifecycle {
     prevent_destroy = true

@@ -13,7 +13,6 @@ data "aws_iam_policy_document" "moru_server_assume_role" {
 
 data "aws_iam_policy_document" "moru_dev_assets" {
   statement {
-    sid       = "AccessMoruAssetBucket"
     effect    = "Allow"
     actions   = ["s3:ListBucket"]
     resources = ["arn:aws:s3:::moru-dev-assets-488230509502"]
@@ -26,7 +25,6 @@ data "aws_iam_policy_document" "moru_dev_assets" {
   }
 
   statement {
-    sid    = "ManageMoruAssetObjects"
     effect = "Allow"
     actions = [
       "s3:DeleteObject",

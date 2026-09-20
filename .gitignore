@@ -223,6 +223,7 @@ replay_pid*
 *.tfvars
 !*.tfvars.example
 infra/prod/backend.hcl
+infra/prod/backend.tf
 
 ### JetBrains ###
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
