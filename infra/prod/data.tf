@@ -8,6 +8,10 @@ data "aws_subnet" "production_ec2" {
   id = var.ec2_subnet_id
 }
 
+data "aws_db_subnet_group" "existing" {
+  name = var.rds_subnet_group_name
+}
+
 check "expected_aws_account" {
   assert {
     condition     = data.aws_caller_identity.current.account_id == var.aws_account_id

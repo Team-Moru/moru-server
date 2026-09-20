@@ -45,3 +45,21 @@ variable "ec2_iam_role_name" {
   description = "Existing EC2 role that grants S3 and CloudWatch access."
   default     = "moru-server-s3-role"
 }
+
+variable "rds_instance_identifier" {
+  type        = string
+  description = "Existing production RDS instance identifier."
+  default     = "moru-db"
+}
+
+variable "rds_security_group_id" {
+  type        = string
+  description = "Existing security group attached to the production RDS instance."
+  default     = "sg-0056408c9dc50cef4"
+}
+
+variable "rds_subnet_group_name" {
+  type        = string
+  description = "Existing default DB subnet group. Terraform must only reference it."
+  default     = "default-vpc-087c2d76939191694"
+}
