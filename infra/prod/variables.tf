@@ -63,3 +63,21 @@ variable "rds_subnet_group_name" {
   description = "Existing default DB subnet group. Terraform must only reference it."
   default     = "default-vpc-087c2d76939191694"
 }
+
+variable "production_assets_bucket_name" {
+  type        = string
+  description = "Existing private production assets bucket."
+  default     = "moru-prod-assets-488230509502"
+}
+
+variable "production_preview_bucket_name" {
+  type        = string
+  description = "Existing production TTS preview bucket."
+  default     = "moru-prod-preview-assets-488230509502"
+}
+
+variable "application_log_group_name" {
+  type        = string
+  description = "Existing CloudWatch log group used by Docker awslogs."
+  default     = "/moru/prod/app"
+}
