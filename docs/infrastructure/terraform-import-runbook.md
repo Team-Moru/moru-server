@@ -42,7 +42,8 @@ imported in this phase.
 ## Read-Only Validation
 
 The following commands do not write Terraform state and are safe to run with
-the `moru_terraform` read-only profile after login:
+the `moru-prod` read-only profile after login (`moru_terraform` is the
+read-only discovery user, not the profile name):
 
 ```bash
 cd infra/prod

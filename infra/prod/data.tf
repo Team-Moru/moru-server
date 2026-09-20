@@ -1,4 +1,11 @@
-data "aws_caller_identity" "current" {}
+data "aws_caller_identity" "current" {
+  lifecycle {
+    postcondition {
+      condition     = self.account_id == var.aws_account_id
+      error_message = "This configuration is restricted to AWS account ${var.aws_account_id}."
+    }
+  }
+}
 
 data "aws_vpc" "existing" {
   id = var.vpc_id
@@ -10,11 +17,4 @@ data "aws_subnet" "production_ec2" {
 
 data "aws_db_subnet_group" "existing" {
   name = var.rds_subnet_group_name
-}
-
-check "expected_aws_account" {
-  assert {
-    condition     = data.aws_caller_identity.current.account_id == var.aws_account_id
-    error_message = "This configuration is restricted to AWS account ${var.aws_account_id}."
-  }
 }
