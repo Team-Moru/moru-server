@@ -4,6 +4,12 @@ variable "aws_region" {
   default     = "ap-northeast-2"
 }
 
+variable "aws_account_id" {
+  type        = string
+  description = "AWS account that owns the production Terraform state bucket."
+  default     = "488230509502"
+}
+
 variable "project" {
   type        = string
   description = "Project tag for newly created backend resources."

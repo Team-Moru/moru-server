@@ -31,8 +31,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "production_assets
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
     }
-
-    bucket_key_enabled = true
   }
 }
 
@@ -88,8 +86,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "production_previe
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
     }
-
-    bucket_key_enabled = true
   }
 }
 
