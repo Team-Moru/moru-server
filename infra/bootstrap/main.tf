@@ -45,6 +45,8 @@ data "aws_iam_policy_document" "state_operator" {
       values = [
         var.state_key,
         "${var.state_key}.tflock",
+        "env:/",
+        "env:/*",
       ]
     }
   }
