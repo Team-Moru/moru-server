@@ -7,15 +7,27 @@ state. It must not create, update, replace, or delete an application resource.
 The configuration uses declarative `import` blocks, so the import is reviewed
 through the normal `plan` and `apply` workflow.
 
-## Preconditions
+## Completion Record
+
+The production import was completed on 2026-09-24 using the `moru-prod` AWS
+profile in account `488230509502`. The reviewed plan contained 30 imports and
+no additions, changes, or deletions. All 30 managed resources appeared in the
+remote state afterward, and a fresh plan reported `No changes`.
+
+The backend is the private `moru-prod-terraform-state-488230509502` bucket,
+with state at `prod/terraform.tfstate`. Do not reapply the saved import plan or
+repeat this procedure against the populated state. For future changes, follow
+the approval workflow in [infra/README.md](../../infra/README.md).
+
+## Historical Preconditions
 
 1. The Terraform state bucket has been created from `infra/bootstrap` after a
    separate approval.
-2. The approved Terraform operator has the state-access policy created by the
-   bootstrap configuration, plus only the AWS permissions needed to manage the
-   imported resources.
-3. The `moru_terraform` discovery user remains read-only. Do not use it for
-   import or apply.
+2. The `moru_terraform` IAM user has production read access and the dedicated
+   state-access policy. This allowed the import-only apply to update state
+   without changing the imported AWS resources.
+3. Future infrastructure changes require separately approved, scoped AWS
+   write permissions; the state-access policy alone is not sufficient.
 4. No concurrent Terraform operation is running for prod.
 5. The production service is healthy before beginning. Record the current
    health result and do not restart Docker, Nginx, or EC2 as part of this work.
@@ -39,23 +51,25 @@ The default VPC, default subnets, default DB subnet group, Docker Compose,
 Redis, GitHub Actions, Nginx, Certbot, DuckDNS, and EC2-hosted files are not
 imported in this phase.
 
-## Read-Only Validation
+## Current Validation
 
-The following commands do not write Terraform state and are safe to run with
-the `moru-prod` read-only profile after login (`moru_terraform` is the
-read-only discovery user, not the profile name):
+The following commands validate the configuration and check for drift using
+the `moru-prod` profile after login:
 
 ```bash
 cd infra/prod
-AWS_PROFILE=moru-prod terraform init -reconfigure
+AWS_PROFILE=moru-prod terraform init -reconfigure -backend-config=backend.hcl
 AWS_PROFILE=moru-prod terraform validate
-AWS_PROFILE=moru-prod terraform plan -lock=false
+AWS_PROFILE=moru-prod terraform plan -lock-timeout=5m
 ```
 
-The expected result is a plan containing imports only. Stop immediately when
-the plan includes an action other than `import` for an existing resource.
+The expected result now is `No changes`. Any proposed create, update,
+replacement, or deletion needs investigation and approval before an apply.
 
-## Approved Import Procedure
+## Historical Import Procedure (Completed)
+
+The steps below record the one-time migration. Do not run them again for this
+production state.
 
 1. Use the approved Terraform operator profile and configure
    `infra/prod/backend.tf` and `infra/prod/backend.hcl` from the committed
@@ -89,8 +103,8 @@ the plan includes an action other than `import` for an existing resource.
    terraform state list
    ```
 
-7. Remove the local `prod-import.tfplan` file. It is ignored by Git and must
-   never be committed.
+7. Keep the local `prod-import.tfplan` file out of Git and remove it when no
+   longer needed; saved plans can contain sensitive values.
 
 ## Stop Conditions
 
@@ -104,6 +118,10 @@ Stop and investigate before an apply when any of the following occurs:
 - The application health check fails before or during the activity.
 
 ## Post-Import Follow-Up
+
+Keep an access-controlled backup of the local
+`infra/bootstrap/terraform.tfstate`, which manages the state bucket itself.
+The application deployment workflow does not run Terraform.
 
 The open RDS and SSH network rules are documented security findings, not an
 incidental Terraform migration change. Address them in a separate, reviewed
