@@ -1,76 +1,53 @@
 # Terraform Infrastructure
 
-`bootstrap` creates the dedicated S3 backend resources. It intentionally uses
-local state for this one-time setup. `prod` manages the existing Moru
-production infrastructure after its backend is configured.
+`bootstrap` created the dedicated S3 backend and retains local state. `prod`
+manages the 30 existing Moru production AWS resources imported on 2026-09-24.
+The post-import plan reported 0 to add, 0 to change, and 0 to destroy. See the
+[import runbook](../docs/infrastructure/terraform-import-runbook.md) for the
+original scope and verification record.
 
-## Safety Boundary
+## State and Access
 
-The current `moru-prod` AWS profile is read-only. It can run discovery,
-`terraform fmt`, `terraform validate`, and a read-only import plan. It cannot
-create the state bucket or import resources into remote state.
+The production state is stored in the private
+`moru-prod-terraform-state-488230509502` bucket at `prod/terraform.tfstate`.
+The bucket uses AES256 encryption, versioning, public-access blocking, and S3
+lockfiles. Keep state, plan files, and local backend configuration files out of
+Git; state and plans may contain sensitive values. The local
+`infra/bootstrap/terraform.tfstate` is also sensitive and must be backed up in
+an access-controlled location outside the repository.
 
-Do not run `terraform apply`, `terraform import`, or `terraform destroy` until
-the plan is reviewed and explicit approval is given.
+The `moru-prod` AWS CLI profile uses the `moru_terraform` IAM user. It has
+production read access and the dedicated state-bucket policy, but not general
+write access to EC2, RDS, or application S3 buckets. Grant only the specific
+AWS write permissions required for an approved infrastructure change. Never
+use the root account for Terraform operations.
 
-## State Backend
+On a new workstation, copy `infra/prod/backend.tf.example` to
+`infra/prod/backend.tf` and `infra/prod/backend.hcl.example` to
+`infra/prod/backend.hcl`. Set the approved bucket name in `backend.hcl`. Both
+files are ignored by Git. Then initialize from `infra/prod` with
+`AWS_PROFILE=moru-prod terraform init -reconfigure -backend-config=backend.hcl`.
+Do not create another state bucket or repeat the production import.
 
-The backend is deliberately separate from the existing application buckets.
-The bootstrap configuration creates a private bucket with:
+## Production Changes
 
-- AES256 server-side encryption
-- S3 bucket versioning for state recovery
-- S3 lockfiles through `use_lockfile = true`
-- public-access blocking and bucket-owner-enforced ownership
-- a transport-security bucket policy
-- an unattached least-privilege policy for the future Terraform operator
+1. Change the Terraform configuration in a reviewed PR. Keep application
+   deployment and host configuration outside this change unless separately
+   approved.
+2. From `infra/prod`, run `terraform fmt -check`, `terraform validate`, and
+   `AWS_PROFILE=moru-prod terraform plan -out=prod.tfplan -lock-timeout=5m`.
+   Review the exact plan, especially any replacement or deletion. Do not use
+   `-lock=false` for production changes.
+3. After explicit approval and with scoped AWS write permissions, apply the
+   reviewed plan with `AWS_PROFILE=moru-prod terraform apply prod.tfplan`.
+4. Run `AWS_PROFILE=moru-prod terraform plan -lock-timeout=5m` again and check
+   for `No changes`. Do not commit the saved plan.
 
-HashiCorp recommends bucket versioning for S3 state recovery and S3 lockfiles
-for state locking. DynamoDB locking is not used because it is deprecated by the
-S3 backend.
+The existing GitHub Actions workflow builds and deploys the application; it
+does not run Terraform. Terraform applies remain manual and approval-gated.
 
-### Bootstrap after approval
+## Outside Terraform
 
-1. Sign in with a separately approved AWS identity that can create the backend
-   bucket and IAM policy. Do not use the root account.
-2. Choose a globally unique state bucket name. The recommended candidate is
-   `moru-prod-terraform-state-488230509502`, subject to availability.
-3. Run the following from `infra/bootstrap`:
-
-   ```bash
-   terraform init
-   terraform plan -var='state_bucket_name=CHOSEN_BUCKET_NAME'
-   ```
-
-4. Review that the plan only creates the state bucket resources and the
-   unattached operator policy. After explicit approval, run `terraform apply`
-   with the same variable.
-5. Attach the created state-access policy only to the approved Terraform
-   operator identity. Keep the `moru_terraform` discovery user read-only.
-
-### Configure the production backend
-
-1. Copy `infra/prod/backend.tf.example` to `infra/prod/backend.tf` and copy
-   `infra/prod/backend.hcl.example` to `infra/prod/backend.hcl`.
-2. Replace the bucket name with the approved state bucket name. Do not commit
-   either file.
-3. Run the following from `infra/prod`:
-
-   ```bash
-   terraform init -backend-config=backend.hcl
-   terraform plan
-   ```
-
-The first production plan should show imports only. Any planned create, update,
-replacement, or destroy for an existing production resource is a stop signal.
-
-Before the state bucket exists, leave `backend.tf` absent and use Terraform's
-local backend only for read-only validation. Local state and plan files are
-ignored by Git and must never be committed.
-
-## Non-Terraform Host Configuration
-
+The shared VPC, subnets, and DB subnet group are referenced as data sources.
 Docker Compose, Redis, GitHub Actions, Nginx, Certbot, DuckDNS, and EC2-hosted
-files remain outside the Terraform scope in this phase. Their existing setup is
-documented in the repository and on the production host; it must not be changed
-as part of adoption.
+files remain outside Terraform management in this phase.
