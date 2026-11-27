@@ -19,7 +19,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
-import com.moru.server.domain.member.entity.enums.Role;
+import com.moru.server.global.security.auth.AuthenticatedInstallation;
 import com.moru.server.global.exception.BusinessException;
 import com.moru.server.global.response.ApiResponse;
 import com.moru.server.global.response.code.BaseCode;
@@ -40,7 +40,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return TOKEN_REISSUE_PATH.equals(request.getServletPath());
+        String path = request.getServletPath();
+        return TOKEN_REISSUE_PATH.equals(path)
+                || ("POST".equals(request.getMethod())
+                    && ("/auth/anonymous".equals(path) || "/auth/anonymous/refresh".equals(path)));
     }
 
     @Override
@@ -57,7 +60,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
-            jwtTokenProvider.validateAccessToken(accessToken);
             setAuthentication(request, accessToken);
             filterChain.doFilter(request, response);
         } catch (BusinessException e) {
@@ -87,13 +89,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void setAuthentication(HttpServletRequest request, String accessToken) {
-        Long memberId = jwtTokenProvider.getMemberId(accessToken);
-        Role role = jwtTokenProvider.getRole(accessToken);
-        AuthenticatedMember principal = new AuthenticatedMember(memberId, role);
+        Object principal = jwtTokenProvider.getAccessPrincipal(accessToken);
+        String authority = principal instanceof AuthenticatedMember member
+                ? ROLE_PREFIX + member.role().name()
+                : AuthenticatedInstallation.AUTHORITY;
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                 principal,
                 null,
-                List.of(new SimpleGrantedAuthority(ROLE_PREFIX + role.name()))
+                List.of(new SimpleGrantedAuthority(authority))
         );
 
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
