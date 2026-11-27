@@ -24,6 +24,6 @@ public class TTSQueryServiceImpl implements TTSQueryService {
     public TTSResponseDTO.VoiceListResponse getVoices() {
         List<TTS> voices = ttsRepository.findAllByOrderByIdAsc();
 
-        return TTSConverter.toVoiceListResponse(voices, assetProperties.getPublicBaseUrl());
+        return TTSConverter.toVoiceListResponse(voices.stream().filter(TTS::isV2Enabled).toList(), assetProperties.getPublicBaseUrl());
     }
 }

@@ -1,6 +1,8 @@
 package com.moru.server.domain.tts.converter;
 
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
 
 import org.springframework.util.StringUtils;
 
@@ -36,9 +38,22 @@ public class TTSConverter {
                 .doneAudioStatus(resolveAudioStatus(voice.getDoneAudioKey()))
                 .remindAudioUrl(resolvePublicAssetUrl(publicAssetBaseUrl, voice.getRemindAudioKey()))
                 .remindAudioStatus(resolveAudioStatus(voice.getRemindAudioKey()))
+                .countdownAudioUrls(countdownUrls(publicAssetBaseUrl, voice.getCountdownAudioPrefix()))
                 .selectionVersion(voice.getSelectionVersion())
                 .proOnly(voice.getIsProOnly())
                 .build();
+    }
+
+    private static Map<Integer, String> countdownUrls(String baseUrl, String prefix) {
+        if (!StringUtils.hasText(baseUrl) || !StringUtils.hasText(prefix)) {
+            return Map.of();
+        }
+        String directory = prefix.replaceAll("/+$", "");
+        Map<Integer, String> urls = new LinkedHashMap<>();
+        for (int seconds = 5; seconds >= 1; seconds--) {
+            urls.put(seconds, resolvePublicAssetUrl(baseUrl, directory + "/" + seconds + ".mp3"));
+        }
+        return urls;
     }
 
     private static TtsAudioStatus resolveAudioStatus(String objectKey) {

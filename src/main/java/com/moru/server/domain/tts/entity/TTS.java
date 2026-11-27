@@ -37,6 +37,13 @@ public class TTS extends BaseEntity {
     @Column(name = "remind_audio_key", length = 500)
     private String remindAudioKey;
 
+    @Column(name = "countdown_audio_prefix", length = 500)
+    private String countdownAudioPrefix;
+
+    @Column(name = "v2_enabled", nullable = false)
+    @Builder.Default
+    private boolean v2Enabled = true;
+
     @Column(name = "selection_version", nullable = false)
     @Builder.Default
     private Integer selectionVersion = 1;
