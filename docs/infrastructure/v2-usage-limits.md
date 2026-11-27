@@ -38,3 +38,24 @@ Gemini 한도는 프로젝트 단위이므로 같은 프로젝트의 다른 API 
 신규 발급 제한은 **IP당 분당 30회**, 갱신 제한은 **익명 설치당 분당 5회**를 초기안으로 사용합니다. 갱신은 검증된 갱신 토큰에서 설치를 식별합니다. 설치 UUID를 다시 제출하는 것만으로 기존 설치의 토큰을 발급하지 않습니다.
 
 운영 요청의 IP는 애플리케이션 앞의 신뢰된 프록시가 덮어쓴 값으로 판단합니다. EC2 애플리케이션 포트는 루프백에 게시되어 있으므로, [#142](https://github.com/Team-Moru/moru-server/issues/142)에서 Nginx의 실제 전달 경로를 확인하고 클라이언트가 넣은 전달 헤더로 제한을 바꿀 수 없는지 검증합니다. [운영 Compose](../../docker-compose.prod.yml) · [운영 Nginx 로그 설정](../../deploy/nginx/README.md)
+
+## 배포 설정과 클라이언트 응답
+
+| 설정 항목 | 적용 범위 | 연결 이슈 |
+| --- | --- | --- |
+| 신규 발급·갱신 RPM | 발급 IP 및 검증된 익명 설치 | [#142](https://github.com/Team-Moru/moru-server/issues/142) |
+| AI RPM·일일 횟수 | 익명 설치별 및 서비스 전체 | [#143](https://github.com/Team-Moru/moru-server/issues/143) |
+| TTS 신규 합성 RPM·일일 횟수와 입력 길이 | 익명 설치별 및 서비스 전체, TTS 요청 검증 | [#144](https://github.com/Team-Moru/moru-server/issues/144) |
+
+각 구현에서 Spring 설정을 운영 Compose의 환경 변수로 주입하고, 개발·테스트 값은 운영 값과 독립적으로 관리합니다. 한도 설정은 양의 정수로 검증합니다. 실제 운영 공급자 쿼터와 비용 검토를 마치면 서비스 전체 적용값을 결정하고 배포 설정에 반영합니다.
+
+- 앱의 설치별 한도 초과에는 HTTP 429, API별 고정 코드, `Retry-After`를 반환합니다. AI 설치별 한도 코드는 `AI_ROUTINE_QUOTA_EXCEEDED`입니다. `Retry-After`는 해당 요청이 막힌 창이 모두 풀릴 때까지 남은 초를 사용합니다.
+- 서비스 전체 상한과 토큰 발급 상한에도 429와 `Retry-After`를 반환하고, 설치별 한도와 구분되는 코드는 [#140](https://github.com/Team-Moru/moru-server/issues/140)에서 맞춥니다. Google의 429·503은 공급자 오류로 처리하고, Redis 장애 시 AI 호출·신규 합성은 중단합니다.
+- 운영 배포 후 Redis 차단 건수, Google에 보낸 요청량, 공급자 429·5xx, TTS 캐시 적중률과 비용을 확인합니다. 수치를 변경할 때는 기존 설정값과 변경 사유를 기록하고 테스트 환경에서 429·`Retry-After`를 검증한 뒤 배포합니다.
+
+## 운영 적용 전 확인
+
+- [ ] [Google AI Studio](https://aistudio.google.com/rate-limit)에서 운영 프로젝트의 모델·RPM·TPM·RPD 및 사용량 확인
+- [ ] [Google Cloud 콘솔](https://console.cloud.google.com/iam-admin/quotas)에서 운영 TTS 프로젝트의 적용 쿼터와 사용량 확인
+- [ ] 월 예산과 기존 호출량을 바탕으로 서비스 전체 상한 확정
+- [ ] iOS에 최대 입력 길이, 한도 응답 코드와 재시도 규칙 공유
