@@ -9,17 +9,19 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
-import com.moru.server.domain.member.entity.enums.Role;
+import com.moru.server.global.security.auth.AuthenticatedInstallation;
 import com.moru.server.global.exception.BusinessException;
 import com.moru.server.global.response.ApiResponse;
 import com.moru.server.global.response.code.BaseCode;
@@ -34,13 +36,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String ROLE_PREFIX = "ROLE_";
     private static final String TOKEN_REISSUE_PATH = "/auth/reissue";
+    private static final PathPatternRequestMatcher PUBLIC_TTS =
+            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/tts");
 
     private final JwtTokenProvider jwtTokenProvider;
     private final ObjectMapper objectMapper;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return TOKEN_REISSUE_PATH.equals(request.getServletPath());
+        String path = request.getServletPath();
+        return TOKEN_REISSUE_PATH.equals(path)
+                || ("POST".equals(request.getMethod())
+                    && ("/auth/anonymous".equals(path) || "/auth/anonymous/refresh".equals(path)));
     }
 
     @Override
@@ -51,19 +58,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         try {
             String accessToken = resolveAccessToken(request);
-
-            if (!StringUtils.hasText(accessToken)) {
-                filterChain.doFilter(request, response);
-                return;
+            if (StringUtils.hasText(accessToken)) {
+                setAuthentication(request, accessToken);
             }
-
-            jwtTokenProvider.validateAccessToken(accessToken);
-            setAuthentication(request, accessToken);
-            filterChain.doFilter(request, response);
         } catch (BusinessException e) {
             SecurityContextHolder.clearContext();
-            writeErrorResponse(response, e.getBaseCode());
+            if (!PUBLIC_TTS.matches(request)) {
+                writeErrorResponse(response, e.getBaseCode());
+                return;
+            }
         }
+        filterChain.doFilter(request, response);
     }
 
     private String resolveAccessToken(HttpServletRequest request) {
@@ -87,13 +92,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void setAuthentication(HttpServletRequest request, String accessToken) {
-        Long memberId = jwtTokenProvider.getMemberId(accessToken);
-        Role role = jwtTokenProvider.getRole(accessToken);
-        AuthenticatedMember principal = new AuthenticatedMember(memberId, role);
+        Object principal = jwtTokenProvider.getAccessPrincipal(accessToken);
+        String authority = principal instanceof AuthenticatedMember member
+                ? ROLE_PREFIX + member.role().name()
+                : AuthenticatedInstallation.AUTHORITY;
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                 principal,
                 null,
-                List.of(new SimpleGrantedAuthority(ROLE_PREFIX + role.name()))
+                List.of(new SimpleGrantedAuthority(authority))
         );
 
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

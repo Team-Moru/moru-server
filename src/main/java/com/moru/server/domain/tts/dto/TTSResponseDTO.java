@@ -1,6 +1,7 @@
 package com.moru.server.domain.tts.dto;
 
 import java.util.List;
+import java.util.Map;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
@@ -8,6 +9,9 @@ import lombok.Builder;
 import com.moru.server.domain.tts.entity.enums.TtsAudioStatus;
 
 public record TTSResponseDTO() {
+
+    public record SynthesisResponse(String audioUrl) {
+    }
 
     @Builder
     @Schema(description = "TTS 목소리 목록 조회 응답")
@@ -60,6 +64,8 @@ public record TTSResponseDTO() {
 
             @Schema(description = "루틴 리마인드 공통 음원 생성 상태", example = "READY")
             TtsAudioStatus remindAudioStatus,
+
+            Map<Integer, String> countdownAudioUrls,
 
             @Schema(description = "음성 공통 음원 캐시 버전", example = "1")
             Integer selectionVersion,

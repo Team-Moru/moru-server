@@ -33,6 +33,14 @@ public class GoogleTtsClient {
                 ? defaultVoice
                 : voiceName;
 
+        return synthesize(text, name, AudioEncoding.valueOf(audioEncoding));
+    }
+
+    public byte[] synthesizeMp3(String text, String voiceName) {
+        return synthesize(text, voiceName, AudioEncoding.MP3);
+    }
+
+    private byte[] synthesize(String text, String name, AudioEncoding encoding) {
         SynthesizeSpeechResponse response = textToSpeechClient.synthesizeSpeech(
                 SynthesisInput.newBuilder().setText(text).build(),
                 VoiceSelectionParams.newBuilder()
@@ -40,7 +48,7 @@ public class GoogleTtsClient {
                         .setName(name)
                         .build(),
                 AudioConfig.newBuilder()
-                        .setAudioEncoding(AudioEncoding.valueOf(audioEncoding))
+                        .setAudioEncoding(encoding)
                         .build());
 
         return response.getAudioContent().toByteArray();

@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.moru.server.global.security.auth.AuthenticatedInstallation;
 import org.springframework.web.bind.annotation.*;
 import com.moru.server.domain.routine.dto.RoutineGroupRequestDTO;
 import com.moru.server.domain.routine.dto.RoutineGroupResponseDTO;
@@ -109,10 +110,10 @@ public class RoutineGroupController {
     @Operation(summary = "AI 루틴 그룹 생성", description = "자연어 입력을 기반으로 AI가 루틴 그룹을 생성합니다.")
     @PostMapping("/ai-generate")
     public ApiResponse<RoutineGroupAiGenerateResponseDTO> generateAiRoutine(
-            @AuthenticationPrincipal AuthenticatedMember member,
+            @AuthenticationPrincipal AuthenticatedInstallation installation,
             @Valid @RequestBody RoutineGroupAiGenerateRequestDTO request
     ) {
         return ApiResponse.of(SuccessStatus._CREATED,
-                routineCommandAiService.generateRoutineGroup(request.userInput()));
+                routineCommandAiService.generateRoutineGroup(request.userInput(), installation == null ? null : installation.id()));
     }
 }
