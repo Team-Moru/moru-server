@@ -9,7 +9,8 @@
   - AI는 `MORU_V2_AIPERMINUTE`, `MORU_V2_AIPERDAY`, `MORU_V2_AIGLOBALPERMINUTE`, `MORU_V2_AIGLOBALPERDAY`를 사용합니다.
   - TTS는 `MORU_V2_TTSPERMINUTE`, `MORU_V2_TTSPERDAY`, `MORU_V2_TTSGLOBALPERMINUTE`, `MORU_V2_TTSGLOBALPERDAY`, `MORU_V2_TTSMAXCHARACTERS`를 사용합니다.
 - Nginx가 앱으로 보내는 위치에서 `proxy_set_header X-Moru-Client-Ip $remote_addr;`로 들어오는 헤더를 덮어쓰고, 앱 포트가 외부에 노출되지 않는지 확인합니다. 이후 `MORU_V2_TRUSTPROXYCLIENTIP=true`를 적용하고 다른 IP를 헤더에 넣어도 같은 IP의 발급 제한이 유지되는지 확인합니다. 이 설정이 꺼져 있으면 서버는 직접 연결의 주소를 사용합니다.
-- Flyway 마이그레이션으로 익명 설치 저장소와 TTS 카탈로그 컬럼을 추가합니다. 목소리 선택 후 별도 데이터 마이그레이션에서 기존 `ttsId`와 코드명을 보존하고, 지원할 4종의 표시명·`v2_enabled`·`countdown_audio_prefix`를 반영합니다. 음원 키는 `<prefix>/5.mp3`부터 `<prefix>/1.mp3`까지 사용하며, 공개 S3에서 재생을 확인한 후 카탈로그에 반영하고 `selection_version`을 올립니다.
+- Flyway가 익명 설치 저장소와 TTS 카탈로그 컬럼을 추가하고, 기존 `ttsId`를 유지하면서 v2 목소리를 반영합니다. 배포 전에 DB에 `Orus`(온기), `Leda`(산뜻), `Kore`(단정), `Alnilam`(여유)이 각각 한 행씩 있는지 확인합니다.
+- 카운트다운은 공개 S3의 `tts/common/v2/countdown/<voiceCode 소문자>/`에 `5.mp3`부터 `1.mp3`까지 저장합니다. 재생을 확인한 뒤 별도 데이터 마이그레이션으로 `countdown_audio_prefix`를 등록하고 `selection_version`을 올립니다.
 
 ## 검증
 
