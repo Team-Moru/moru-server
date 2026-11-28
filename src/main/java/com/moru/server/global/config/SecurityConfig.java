@@ -7,6 +7,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpMethod;
 import com.moru.server.global.security.auth.AuthenticatedInstallation;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -30,8 +31,9 @@ public class SecurityConfig {
             ObjectMapper objectMapper,
             @Value("${dev-auth.secret:}") String devAuthSecret
     ) throws Exception {
+        boolean production = environment.acceptsProfiles(Profiles.of("prod"));
         DevAuthSecretFilter devAuthSecretFilter = new DevAuthSecretFilter(
-                environment.acceptsProfiles(Profiles.of("prod")),
+                production,
                 devAuthSecret,
                 objectMapper
         );
@@ -47,11 +49,10 @@ public class SecurityConfig {
                                 "/health",
                                 "/auth/reissue",
                                 "/auth/login/**",
-                                "/dev/auth/token",
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html"
+                                "/dev/auth/token"
                         ).permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                            .access((authentication, request) -> new AuthorizationDecision(!production))
                         .requestMatchers(HttpMethod.POST, "/auth/anonymous", "/auth/anonymous/refresh").permitAll()
                         .requestMatchers(HttpMethod.GET, "/tts").permitAll()
                         .requestMatchers(HttpMethod.POST, "/routine-groups/ai-generate")
