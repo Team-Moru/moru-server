@@ -1,6 +1,5 @@
 package com.moru.server.domain.routine.service.command.AI;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moru.server.domain.routine.dto.RoutineGroupAiGenerateResponseDTO;
@@ -12,6 +11,7 @@ import org.springframework.web.client.RestClientException;
 import com.moru.server.global.exception.BusinessException;
 import com.moru.server.global.response.code.status.ErrorStatus;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -34,7 +34,8 @@ public class GeminiRoutineGroupAiGenerator implements RoutineGroupAiGenerator {
         this.properties = properties;
         this.objectMapper = new ObjectMapper()
                 .enable(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES)
-                .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES);
+                .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
+                .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(5_000);
@@ -52,7 +53,7 @@ public class GeminiRoutineGroupAiGenerator implements RoutineGroupAiGenerator {
 
         Map<String, Object> requestBody = buildRequestBody(userInput);
 
-        Map<String, Object> response;
+        byte[] response;
         try {
             response = restClient.post()
                     .uri(url)
@@ -60,7 +61,7 @@ public class GeminiRoutineGroupAiGenerator implements RoutineGroupAiGenerator {
                     .header("Content-Type", "application/json")
                     .body(requestBody)
                     .retrieve()
-                    .body(Map.class);
+                    .body(byte[].class);
         } catch (RestClientException e) {
             throw new BusinessException(ErrorStatus.AI_ROUTINE_UPSTREAM_UNAVAILABLE);
         }
@@ -124,11 +125,15 @@ public class GeminiRoutineGroupAiGenerator implements RoutineGroupAiGenerator {
         );
     }
 
-    private RoutineGroupAiGenerateResponseDTO parseResponse(Map<String, Object> response) {
+    private RoutineGroupAiGenerateResponseDTO parseResponse(byte[] response) {
+        if (response == null || response.length == 0) {
+            throw new BusinessException(ErrorStatus.AI_ROUTINE_PARSE_FAILED);
+        }
         try {
-            var text = objectMapper.valueToTree(response)
-                    .path("candidates").path(0).path("content").path("parts").path(0).path("text");
-            if (!text.isTextual()) {
+            var root = objectMapper.readTree(response);
+            var text = root == null ? null : root.path("candidates").path(0).path("content")
+                    .path("parts").path(0).path("text");
+            if (text == null || !text.isTextual()) {
                 throw new BusinessException(ErrorStatus.AI_ROUTINE_PARSE_FAILED);
             }
             var result = objectMapper.readValue(text.asText(), RoutineGroupAiGenerateResponseDTO.class);
@@ -139,7 +144,7 @@ public class GeminiRoutineGroupAiGenerator implements RoutineGroupAiGenerator {
                 throw new BusinessException(ErrorStatus.AI_ROUTINE_PARSE_FAILED);
             }
             return result;
-        } catch (JsonProcessingException e) {
+        } catch (IOException e) {
             throw new BusinessException(ErrorStatus.AI_ROUTINE_PARSE_FAILED);
         }
     }

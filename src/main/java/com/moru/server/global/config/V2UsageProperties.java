@@ -23,6 +23,8 @@ public class V2UsageProperties {
     @Positive private int ttsPerDay = 30;
     @Positive private int ttsGlobalPerMinute = 30;
     @Positive private int ttsGlobalPerDay = 300;
+    @Positive private int ttsRequestsPerMinute = 60;
+    @Positive private int ttsRequestsGlobalPerMinute = 180;
     @Positive private int ttsMaxCharacters = 250;
     private boolean trustProxyClientIp;
 }

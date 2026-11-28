@@ -9,11 +9,13 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -34,6 +36,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String ROLE_PREFIX = "ROLE_";
     private static final String TOKEN_REISSUE_PATH = "/auth/reissue";
+    private static final PathPatternRequestMatcher PUBLIC_TTS =
+            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/tts");
 
     private final JwtTokenProvider jwtTokenProvider;
     private final ObjectMapper objectMapper;
@@ -54,18 +58,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         try {
             String accessToken = resolveAccessToken(request);
-
-            if (!StringUtils.hasText(accessToken)) {
-                filterChain.doFilter(request, response);
-                return;
+            if (StringUtils.hasText(accessToken)) {
+                setAuthentication(request, accessToken);
             }
-
-            setAuthentication(request, accessToken);
-            filterChain.doFilter(request, response);
         } catch (BusinessException e) {
             SecurityContextHolder.clearContext();
-            writeErrorResponse(response, e.getBaseCode());
+            if (!PUBLIC_TTS.matches(request)) {
+                writeErrorResponse(response, e.getBaseCode());
+                return;
+            }
         }
+        filterChain.doFilter(request, response);
     }
 
     private String resolveAccessToken(HttpServletRequest request) {

@@ -12,6 +12,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import com.moru.server.global.security.auth.AuthenticatedInstallation;
+import com.moru.server.global.security.auth.AuthenticatedMember;
 import com.moru.server.domain.tts.service.command.SingleTtsService;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -42,7 +43,8 @@ public class TTSController {
 
     @Operation(summary = "TTS 목소리 목록 조회", description = "선택 가능한 TTS 목소리 목록을 조회합니다.")
     @GetMapping
-    public ApiResponse<TTSResponseDTO.VoiceListResponse> getVoices() {
-        return ApiResponse.onSuccess(ttsQueryService.getVoices());
+    public ApiResponse<TTSResponseDTO.VoiceListResponse> getVoices(
+            @AuthenticationPrincipal AuthenticatedMember member) {
+        return ApiResponse.onSuccess(ttsQueryService.getVoices(member != null));
     }
 }

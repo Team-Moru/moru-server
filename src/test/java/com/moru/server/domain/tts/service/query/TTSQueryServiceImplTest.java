@@ -53,7 +53,7 @@ class TTSQueryServiceImplTest {
         );
         when(ttsRepository.findAllByOrderByIdAsc()).thenReturn(List.of(leda, kore));
 
-        TTSResponseDTO.VoiceListResponse response = ttsQueryService.getVoices();
+        TTSResponseDTO.VoiceListResponse response = ttsQueryService.getVoices(false);
 
         assertThat(response.voices())
                 .extracting(TTSResponseDTO.VoiceResponse::ttsId)

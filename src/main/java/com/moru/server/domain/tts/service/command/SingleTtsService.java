@@ -77,6 +77,10 @@ public class SingleTtsService {
         }
         String hash = DigestUtils.sha256Hex("mp3-v1\n" + languageCode + "\n" + voice + "\n" + text);
         String objectKey = "tts/v2/" + hash + ".mp3";
+        quota.consume("tts-request", installationId.toString(),
+                new Limits(properties.getTtsRequestsPerMinute(), null),
+                new Limits(properties.getTtsRequestsGlobalPerMinute(), null),
+                ErrorStatus.TTS_REQUEST_RATE_LIMITED);
         try {
             if (!exists(storage, objectKey)) {
                 createAudio(storage, objectKey, hash, installationId, text, voice);
