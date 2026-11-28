@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.http.HttpMethod;
+import com.moru.server.global.security.auth.AuthenticatedInstallation;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -50,7 +52,13 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
-                        .anyRequest().authenticated()
+                        .requestMatchers(HttpMethod.POST, "/auth/anonymous", "/auth/anonymous/refresh").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/tts").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/routine-groups/ai-generate")
+                            .hasAnyAuthority("ROLE_MEMBER", "ROLE_ADMIN", AuthenticatedInstallation.AUTHORITY)
+                        .requestMatchers(HttpMethod.POST, "/tts/synthesize")
+                            .hasAuthority(AuthenticatedInstallation.AUTHORITY)
+                        .anyRequest().hasAnyRole("MEMBER", "ADMIN")
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(devAuthSecretFilter, JwtAuthenticationFilter.class)

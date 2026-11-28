@@ -6,6 +6,10 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
+import java.util.UUID;
+
+import com.moru.server.global.security.auth.AuthenticatedInstallation;
+import com.moru.server.global.security.auth.AuthenticatedMember;
 
 import javax.crypto.SecretKey;
 
@@ -32,7 +36,53 @@ public class JwtTokenProvider {
     private static final String ACCESS_TOKEN_TYPE = "ACCESS";
     private static final String REFRESH_TOKEN_TYPE = "REFRESH";
 
+    private static final String INSTALLATION_ACCESS = "INSTALLATION_ACCESS";
+    private static final String INSTALLATION_REFRESH = "INSTALLATION_REFRESH";
+
     private final JwtProperties jwtProperties;
+
+    public String createInstallationAccessToken(UUID id) {
+        return createInstallationToken(id, jwtProperties.getAccessTokenExpiration(), INSTALLATION_ACCESS);
+    }
+
+    public String createInstallationRefreshToken(UUID id) {
+        return createInstallationToken(id, jwtProperties.getRefreshTokenExpiration(), INSTALLATION_REFRESH);
+    }
+
+    public UUID getInstallationIdFromRefreshToken(String token) {
+        Claims claims = parseClaims(token, ErrorStatus.REFRESH_TOKEN_EXPIRED);
+        validateTokenType(claims, INSTALLATION_REFRESH);
+        return extractInstallationId(claims);
+    }
+
+    public Object getAccessPrincipal(String token) {
+        Claims claims = parseClaims(token);
+        if (INSTALLATION_ACCESS.equals(claims.get(TOKEN_TYPE_CLAIM, String.class))) {
+            return new AuthenticatedInstallation(extractInstallationId(claims));
+        }
+        validateTokenType(claims, ACCESS_TOKEN_TYPE);
+        return new AuthenticatedMember(extractMemberId(claims), extractRole(claims));
+    }
+
+    private UUID extractInstallationId(Claims claims) {
+        try {
+            return UUID.fromString(claims.getSubject());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new BusinessException(ErrorStatus.INVALID_TOKEN);
+        }
+    }
+
+    private String createInstallationToken(UUID id, Duration duration, String type) {
+        Instant now = Instant.now();
+        return Jwts.builder()
+                .subject(id.toString())
+                .id(UUID.randomUUID().toString())
+                .claim(TOKEN_TYPE_CLAIM, type)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plus(duration)))
+                .signWith(getSigningKey(), Jwts.SIG.HS256)
+                .compact();
+    }
 
     public String createAccessToken(Long memberId, Role role) {
         return createToken(memberId, role, jwtProperties.getAccessTokenExpiration(), ACCESS_TOKEN_TYPE);
@@ -81,6 +131,10 @@ public class JwtTokenProvider {
         Claims claims = parseClaims(token);
         validateTokenType(claims, ACCESS_TOKEN_TYPE);
 
+        return extractRole(claims);
+    }
+
+    private Role extractRole(Claims claims) {
         String role = claims.get(ROLE_CLAIM, String.class);
 
         try {

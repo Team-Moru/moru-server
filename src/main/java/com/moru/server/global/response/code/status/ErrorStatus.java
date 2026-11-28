@@ -18,6 +18,18 @@ public enum ErrorStatus implements BaseCode {
     DUPLICATE_REQUEST(HttpStatus.CONFLICT, "COMMON409", "동일한 요청이 처리 중이거나 방금 처리되었습니다."),
     IDEMPOTENCY_KEY_REUSED(HttpStatus.CONFLICT, "COMMON410", "동일한 Idempotency-Key로 다른 요청이 감지되었습니다."),
 
+    SERVICE_CAPACITY_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "SERVICE_CAPACITY_EXCEEDED", "서비스 사용 한도를 초과했습니다."),
+    QUOTA_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "QUOTA_UNAVAILABLE", "현재 사용량을 확인할 수 없습니다."),
+    ANONYMOUS_AUTH_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "ANONYMOUS_AUTH_RATE_LIMITED", "토큰 요청이 너무 많습니다."),
+    INSTALLATION_ALREADY_REGISTERED(HttpStatus.CONFLICT, "INSTALLATION_ALREADY_REGISTERED", "이미 등록된 앱 설치입니다."),
+    AI_ROUTINE_QUOTA_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "AI_ROUTINE_QUOTA_EXCEEDED", "AI 루틴 생성 한도를 초과했습니다."),
+    AI_ROUTINE_PARSE_FAILED(HttpStatus.BAD_GATEWAY, "AI_ROUTINE_PARSE_FAILED", "AI 루틴 응답을 읽을 수 없습니다."),
+    AI_ROUTINE_UPSTREAM_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI_ROUTINE_UPSTREAM_UNAVAILABLE", "AI 루틴 생성 서비스를 사용할 수 없습니다."),
+    TTS_REQUEST_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "TTS_REQUEST_RATE_LIMITED", "음성 합성 요청이 너무 많습니다."),
+    TTS_QUOTA_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "TTS_QUOTA_EXCEEDED", "음성 합성 한도를 초과했습니다."),
+    TTS_SYNTHESIS_IN_PROGRESS(HttpStatus.CONFLICT, "TTS_SYNTHESIS_IN_PROGRESS", "동일한 음성을 합성하고 있습니다."),
+    TTS_SYNTHESIS_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "TTS_SYNTHESIS_UNAVAILABLE", "음성 합성 서비스를 사용할 수 없습니다."),
+
     // 인증관련 에러
     TOKEN_MISSING(HttpStatus.UNAUTHORIZED, "AUTH4001", "Access Token 또는 Refresh Token이 누락되었습니다."),
     REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "AUTH4002", "로그인 정보가 만료되었습니다."),

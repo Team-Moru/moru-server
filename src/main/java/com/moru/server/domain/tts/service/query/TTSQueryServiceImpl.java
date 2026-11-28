@@ -21,9 +21,11 @@ public class TTSQueryServiceImpl implements TTSQueryService {
     private final AssetProperties assetProperties;
 
     @Override
-    public TTSResponseDTO.VoiceListResponse getVoices() {
+    public TTSResponseDTO.VoiceListResponse getVoices(boolean includeLegacyVoices) {
         List<TTS> voices = ttsRepository.findAllByOrderByIdAsc();
-
+        if (!includeLegacyVoices) {
+            voices = voices.stream().filter(TTS::isV2Enabled).toList();
+        }
         return TTSConverter.toVoiceListResponse(voices, assetProperties.getPublicBaseUrl());
     }
 }

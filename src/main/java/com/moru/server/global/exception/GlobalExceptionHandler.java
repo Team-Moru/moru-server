@@ -86,6 +86,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .body(ApiResponse.onFailure(baseCode));
     }
 
+    @ExceptionHandler(QuotaExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleQuotaExceeded(QuotaExceededException ex) {
+        return ResponseEntity.status(ex.getError().getHttpStatus())
+                .header(HttpHeaders.RETRY_AFTER, Long.toString(ex.getRetryAfter()))
+                .body(ApiResponse.onFailure(ex.getError()));
+    }
+
     // @Valid 검증 실패
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(

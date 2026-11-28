@@ -51,6 +51,20 @@ class TTSConverterTest {
     }
 
     @Test
+    void convertsCountdownPrefixToFivePublicUrls() {
+        String prefix = "tts/common/v2/countdown/leda";
+        TTS voice = TTS.builder().countdownAudioPrefix(prefix + "/").build();
+
+        var response = TTSConverter.toVoiceResponse(voice, PUBLIC_ASSET_BASE_URL + "/");
+
+        assertThat(response.countdownAudioUrls()).hasSize(5);
+        for (int seconds = 1; seconds <= 5; seconds++) {
+            assertThat(response.countdownAudioUrls()).containsEntry(
+                    seconds, PUBLIC_ASSET_BASE_URL + "/" + prefix + "/" + seconds + ".mp3");
+        }
+    }
+
+    @Test
     void returnsPendingStatusAndNullUrlsWhenAudioKeysAreMissing() {
         TTS voice = createVoice(1L, "Leda", null, null, null, 1);
 
@@ -60,6 +74,7 @@ class TTSConverterTest {
         );
 
         assertThat(response.voices()).singleElement().satisfies(result -> {
+            assertThat(result.countdownAudioUrls()).isEmpty();
             assertThat(result.previewAudioUrl()).isNull();
             assertThat(result.previewAudioStatus()).isEqualTo(TtsAudioStatus.PENDING);
             assertThat(result.doneAudioUrl()).isNull();

@@ -4,5 +4,5 @@ import com.moru.server.domain.tts.dto.TTSResponseDTO;
 
 public interface TTSQueryService {
 
-    TTSResponseDTO.VoiceListResponse getVoices();
+    TTSResponseDTO.VoiceListResponse getVoices(boolean includeLegacyVoices);
 }

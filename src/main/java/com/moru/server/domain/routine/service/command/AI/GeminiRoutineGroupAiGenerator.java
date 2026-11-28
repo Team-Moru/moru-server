@@ -1,12 +1,17 @@
 package com.moru.server.domain.routine.service.command.AI;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moru.server.domain.routine.dto.RoutineGroupAiGenerateResponseDTO;
 import com.moru.server.global.config.GeminiRoutineProperties;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import com.moru.server.global.exception.BusinessException;
+import com.moru.server.global.response.code.status.ErrorStatus;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -27,7 +32,10 @@ public class GeminiRoutineGroupAiGenerator implements RoutineGroupAiGenerator {
 
     ) {
         this.properties = properties;
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = new ObjectMapper()
+                .enable(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES)
+                .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
+                .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(5_000);
@@ -45,13 +53,18 @@ public class GeminiRoutineGroupAiGenerator implements RoutineGroupAiGenerator {
 
         Map<String, Object> requestBody = buildRequestBody(userInput);
 
-        Map<String, Object> response = restClient.post()
-                .uri(url)
-                .header("x-goog-api-key", properties.apiKey())
-                .header("Content-Type", "application/json")
-                .body(requestBody)
-                .retrieve()
-                .body(Map.class);
+        byte[] response;
+        try {
+            response = restClient.post()
+                    .uri(url)
+                    .header("x-goog-api-key", properties.apiKey())
+                    .header("Content-Type", "application/json")
+                    .body(requestBody)
+                    .retrieve()
+                    .body(byte[].class);
+        } catch (RestClientException e) {
+            throw new BusinessException(ErrorStatus.AI_ROUTINE_UPSTREAM_UNAVAILABLE);
+        }
 
         return parseResponse(response);
     }
@@ -112,38 +125,27 @@ public class GeminiRoutineGroupAiGenerator implements RoutineGroupAiGenerator {
         );
     }
 
-    @SuppressWarnings("unchecked")
-    private RoutineGroupAiGenerateResponseDTO parseResponse(Map<String, Object> response) {
-        List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
-
-        if (candidates == null || candidates.isEmpty()) {
-            throw new IllegalStateException("Gemini 응답에 candidates가 없습니다.");
+    private RoutineGroupAiGenerateResponseDTO parseResponse(byte[] response) {
+        if (response == null || response.length == 0) {
+            throw new BusinessException(ErrorStatus.AI_ROUTINE_PARSE_FAILED);
         }
-
-        Map<String, Object> firstCandidate = candidates.get(0);
-        Map<String, Object> content = (Map<String, Object>) firstCandidate.get("content");
-
-        if (content == null) {
-            String finishReason = (String) firstCandidate.get("finishReason");
-            throw new IllegalStateException(
-                    "Gemini 응답에 content가 없습니다. finishReason=" + finishReason
-            );
-        }
-
-        List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
-        if (parts == null || parts.isEmpty()) {
-            throw new IllegalStateException("Gemini 응답에 parts가 없습니다.");
-        }
-
-        String jsonText = (String) parts.get(0).get("text");
-        if (jsonText == null) {
-            throw new IllegalStateException("Gemini 응답에 text가 없습니다.");
-        }
-
         try {
-            return objectMapper.readValue(jsonText, RoutineGroupAiGenerateResponseDTO.class);
-        } catch (Exception e) {
-            throw new IllegalStateException("AI 응답 JSON 파싱에 실패했습니다.", e);
+            var root = objectMapper.readTree(response);
+            var text = root == null ? null : root.path("candidates").path(0).path("content")
+                    .path("parts").path(0).path("text");
+            if (text == null || !text.isTextual()) {
+                throw new BusinessException(ErrorStatus.AI_ROUTINE_PARSE_FAILED);
+            }
+            var result = objectMapper.readValue(text.asText(), RoutineGroupAiGenerateResponseDTO.class);
+            if (result == null || result.title() == null || result.description() == null
+                    || result.routines() == null || result.routines().isEmpty()
+                    || result.routines().stream().anyMatch(item -> item == null || item.title() == null
+                    || item.type() == null || item.durationSecond() < 0)) {
+                throw new BusinessException(ErrorStatus.AI_ROUTINE_PARSE_FAILED);
+            }
+            return result;
+        } catch (IOException e) {
+            throw new BusinessException(ErrorStatus.AI_ROUTINE_PARSE_FAILED);
         }
     }
 }
